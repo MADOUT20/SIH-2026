@@ -1,4 +1,4 @@
-# ChaosFaction - Network Security Dashboard
+# NetGuard - Network Security Dashboard
 
 A full-stack security monitoring dashboard with real-time packet inspection, threat detection, and traffic analysis.
 
