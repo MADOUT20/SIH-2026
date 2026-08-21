@@ -1,0 +1,575 @@
+================================================================================
+  NetGuard (formerly ChaosFaction) — Project Information
+  Network-Level Malware Detection System (BETA)
+================================================================================
+
+  Generated: 2026-08-21
+  Branch:    main
+  Live at:   https://chaosfaction.xyz/   (Vercel — frontend only)
+  Status:    BETA — local dev working; backend deployed separately
+
+================================================================================
+SECTION 1 — TECH STACK
+================================================================================
+
+--- BACKEND (Python) ---
+  Runtime:        Python 3.11+ (scripts probe 3.10 → 3.13)
+  Framework:      FastAPI 0.135.0
+  ASGI Server:    Uvicorn 0.41.0 (dev: --reload)
+  Data Validation: Pydantic 2.12.5
+  Config:         python-dotenv 1.2.1  (.env loaded at startup)
+  Packet Capture: Scapy 2.7.0           (native /dev/bpf* on macOS, Npcap on Win)
+  Async Runtime:  asyncio + raw asyncio.start_server for the local HTTP proxy
+  Dev Tooling:    httpx 0.25.2, pytest 7.4.3, pytest-asyncio 0.21.1,
+                  black 23.12, flake8 6.1, mypy 1.7.1
+  Tests:          backend/tests/test_threat_hunt.py (one file, ~60 lines)
+
+  Backend structure:
+    backend/app/
+      main.py                     FastAPI bootstrap + startup/shutdown hooks
+      api/routes.py               Single consolidated routes file (all routers)
+      services/
+        packet_capture.py         Scapy sniff + packet normalization (~542 lines)
+        mobile_proxy.py           asyncio HTTP/HTTPS proxy for phones (~543 lines)
+        threat_detection.py       Detection engine + threat state + blocked set (~1960 lines)
+        traffic_analysis.py       Aggregates / charts (~295 lines)
+      models/schemas.py           Pydantic models (Packet, Threat, TrafficData, etc.)
+      utils/helpers.py            log_event, hash_ip, format_bytes, is_private_ip
+      tests/test_threat_hunt.py   Threat hunt endpoint smoke test
+
+  Routers (all in api/routes.py):
+    /health                          — health probe
+    /api/traffic[/...]               — traffic summary, by-protocol, by-port,
+                                       by-application, connections,
+                                       bandwidth-prediction, history
+    /api/threats[/...]               — list, hunt, respond, intelligence, analyze
+    /api/packets[/...]               — list, interfaces, filter, analyze,
+                                       capture/start, capture/stop, statistics
+    /api/admin[/...]                 — proxy-status, blocked-sites (GET/DELETE),
+                                       dashboard, settings (GET/PUT),
+                                       threats-summary, traffic-summary
+    /api/notifications[/...]         — list, mark-read, delete
+    /api/users[/...]                 — list, create, delete (in-memory only)
+
+--- FRONTEND (TypeScript) ---
+  Framework:      Next.js 16.1.6   (App Router, React Server Components)
+  UI Library:     React 19.2.3
+  Language:       TypeScript 5.7.3 (strict)
+  Styling:        Tailwind CSS 3.4.17 + tailwindcss-animate 1.0.7
+  Component Kit:  shadcn/ui (Radix primitives + lucide-react icons)
+                  30+ Radix packages installed via components.json
+  Charts:         Recharts 2.15.0   (declared, not heavily used)
+  Forms:          react-hook-form 7.54 + zod 3.24 + @hookform/resolvers 3.9
+  HTTP:           native fetch wrapper in lib/api.ts (axios also in deps)
+  Theme:          next-themes 0.4.6 (light/dark, system default = dark)
+  Date utils:     date-fns 3.0
+  Misc:           sonner (toasts), cmdk (command palette), embla-carousel,
+                  input-otp, vaul, react-day-picker 8.10, react-resizable-panels
+  Package mgr:    pnpm  (pnpm-lock.yaml checked in)
+  Bundle tool:    ANALYZE=true next build (analyze script)
+
+  Frontend structure:
+    frontend/app/
+      layout.tsx                  Root layout + ThemeProvider + KeyboardShortcuts
+      page.tsx                    Landing/marketing page
+      globals.css                 Active CSS variables (light + dark themes)
+      dashboard/page.tsx          Single dashboard page; tab-based view switcher
+    frontend/components/
+      dashboard/
+        stat-cards.tsx            4 overview cards (live polling, 5s interval)
+        dashboard-header.tsx      Top bar, notifications dropdown, user menu
+        dashboard-sidebar.tsx     Desktop + mobile nav (Sheet on mobile)
+        traffic.tsx               TrafficChartPanel, PacketInspectionPanel,
+                                  TrafficAnalysisPanel, TrafficPanel
+        threats.tsx               ThreatDetectionPanel, ObservedDevicesCard,
+                                  BlockedSitesCard, ThreatResponsePanel,
+                                  OSProtection
+        alerts.tsx                AlertNotifications, NotificationArchive
+        admin.tsx                 SettingsPanel, AdminPanel, StatsOverview,
+                                  ActionLogs
+      ui/                         shadcn/ui components (button, card, dialog,
+                                  dropdown-menu, sidebar, sheet, table,
+                                  tooltip, ...)
+      theme-toggle.tsx, theme-provider.tsx
+      user-profile-modal.tsx
+      keyboard-shortcuts-handler.tsx
+      footer.tsx
+    frontend/lib/
+      api.ts                      Typed fetch client + all endpoint wrappers
+      utils.ts                    cn() helper (clsx + tailwind-merge)
+    frontend/hooks/
+      use-mobile.tsx, use-toast.ts, use-keyboard-shortcuts.ts
+    frontend/styles/globals.css   Legacy / unused duplicate of app/globals.css
+
+  Cross-cutting:
+    next.config.mjs
+      - BACKEND_API_URL fallback to NEXT_PUBLIC_API_URL or localhost:8000
+      - typescript.ignoreBuildErrors = true   (masks TS errors in CI/build)
+      - rewrites: /api/* and /health → backend
+      - images: AVIF/WebP, full deviceSizes list
+      - experimental.optimizePackageImports for radix + lucide
+    postcss.config.mjs            Only enables tailwindcss; no autoprefixer plugin
+                                  (Tailwind v3 includes it via @tailwindcss/postcss)
+
+--- INFRASTRUCTURE / DEPLOY ---
+  Web server:  Nginx (config at deploy/nginx/chaosfaction.xyz.conf)
+               - HTTP→HTTPS redirect
+               - Let's Encrypt SSL (chaosfaction.xyz, www.chaosfaction.xyz)
+               - Reverse proxy to Next.js on 127.0.0.1:3000
+  Frontend host: Vercel (auto-deploy on git push)
+  Backend host:  Local Mac/Windows for dev; Railway/Render suggested for prod
+  DNS/SSL:      chaosfaction.xyz + www alias; certbot /.well-known path
+
+--- DATA / STATE ---
+  All backend state is IN-MEMORY (no DB):
+    packet_service.packets        — bounded at 1000 packets (FIFO drop)
+    threat_service.detected_threats / manual_threats / notifications
+    threat_service.blocked_domains / blocked_ips
+    threat_service.threat_state_overrides
+    traffic_service.traffic_data  — bounded at 500 history samples
+    proxy_service.client_activity / active_connections
+    routes.users_store            — 2 seeded users only
+
+================================================================================
+SECTION 2 — WORKFLOW
+================================================================================
+
+A. LOCAL SETUP (one-time)
+--------------------------
+  macOS / Linux:
+    ./scripts/setup-local.sh
+        - finds python3.10..3.13
+        - creates backend/.venv (if missing)
+        - pip install -r backend/requirements.txt
+        - pnpm install (or npm install fallback)
+        - writes frontend/.env.local if absent
+        - writes backend/.env if absent
+
+  Windows PowerShell:
+    .\scripts\setup-local.ps1   (equivalent on PowerShell 5+ / pwsh)
+
+B. LOCAL DEV (no packet capture / no proxy)
+-------------------------------------------
+  ./scripts/dev-local.sh
+    - starts uvicorn on 0.0.0.0:8000 with --reload
+    - starts next dev --turbo on 127.0.0.1:3000
+    - frontend talks to backend via NEXT_PUBLIC_API_URL=http://localhost:8000
+    - both processes monitored; SIGINT kills both via trap cleanup
+
+  Equivalent PowerShell:
+    .\scripts\dev-local.ps1
+
+C. CAPTURE + PHONE PROXY MODE
+-----------------------------
+  macOS:
+    ./scripts/dev-local-capture.sh
+        - requests sudo (admin) at start
+        - sudo python -m uvicorn … with PROXY_ENABLED=1 PROXY_HOST=0.0.0.0 PROXY_PORT=8888
+        - prints LAN IP (en0/en1/bridge100) for use as phone proxy host
+        - frees ports 3000, 8000, 8888 before starting
+  Windows:
+    .\scripts\dev-local-capture.ps1
+        - launches backend via Start-Process -Verb RunAs (Admin)
+        - opens two PowerShell windows (backend with admin, frontend normal)
+        - auto-creates Windows Firewall rules for ports 8888 and 8000
+        - prints LAN IPv4 for phone proxy host
+        - warns if Npcap service is not running
+
+D. PHONE TESTING FLOW
+---------------------
+  1. Start capture mode on the Mac.
+  2. Capture script prints "Proxy: <lan-ip>:8888".
+  3. On phone: Wi-Fi → Manual Proxy → Server=<lan-ip>, Port=8888.
+  4. Browse any site — traffic goes through FastAPI's asyncio HTTP proxy.
+  5. Backend parses proxy CONNECT/HTTP requests, normalizes them as
+     "packets" with application_protocol=HTTPS_TUNNEL or HTTP_PROXY_HTTP,
+     stores them in the same list that Scapy populates.
+  6. Threat engine runs over the combined capture+proxy packet list.
+  7. If a watched/known-bad domain is matched, clicking BLOCK in the
+     dashboard calls threat_service.respond_to_threat(..., "BLOCK"),
+     which adds to blocked_domains and then calls
+     proxy_service.drop_connections_for_domain() to kill live sockets.
+
+E. DATA FLOW (single capture → dashboard)
+------------------------------------------
+  Scapy sniff  ─┐
+                ├─► PacketCaptureService._store_packet()
+  Proxy tunnel ─┘     └─► packets[] (max 1000, FIFO) + packet_stats
+                                │
+                                ▼
+                   TrafficAnalysisService.analyze_*
+                                │
+                                ▼
+                  ThreatDetectionService.detect_threats()
+                                │
+                                ├─ 12 detectors (see Section 3)
+                                ├─ _deduplicate_threats
+                                ├─ _apply_threat_state (overrides / blocked)
+                                └─ _merge_all_threats (sort by time desc)
+                                │
+                                ▼
+                         routes.py returns:
+                            /api/traffic, /api/threats, /api/admin/dashboard,
+                            /api/notifications (mix of response actions +
+                            active threats)
+                                │
+                                ▼
+                   frontend/lib/api.ts (typed fetch wrapper)
+                                │
+                                ▼
+                    Dashboard components (5-second polling)
+                                │
+                                ▼
+                   Charts, threat cards, blocked sites, observed devices
+
+F. THREAT RESPONSE FLOW
+-----------------------
+  User clicks BLOCK / INVESTIGATE / ALERT / IGNORE on a threat card
+      │
+      ▼
+  respondToThreat(threatId, action)        [frontend/lib/api.ts]
+      │
+      ▼
+  POST /api/threats/{id}/respond?action=…
+      │
+      ▼
+  ThreatDetectionService.respond_to_threat()
+      ├─ updates threat_state_overrides (or manual_threats entry)
+      ├─ if BLOCK and threat has a destination_host
+      │   ├─ adds to blocked_domains
+      │   └─ calls proxy_service.drop_connections_for_domain() to close
+      │       active sockets to that host
+      ├─ else if BLOCK and source IP is blockable
+      │   ├─ adds to blocked_ips
+      │   └─ ensures a BLOCKED_IP threat exists in manual_threats
+      └─ pushes a RESPONSE_ACTION notification
+      │
+      ▼
+  Dashboard refresh event "chaosfaction:dashboard-refresh" fires
+      └─► all panels re-poll their endpoints
+
+G. WATCHED DOMAINS / INTEL
+--------------------------
+  Backend reads .env:
+    KNOWN_MALICIOUS_DOMAINS=tlauncher.org=HIGH,some-site.example=CRITICAL
+    KNOWN_MALICIOUS_IPS=1.2.3.4,5.6.7.8
+  ThreatDetectionService._watched_domain_rules_from_env()
+      - parses "domain" or "domain=SEVERITY"
+      - resolves IPs at startup via socket.getaddrinfo (cached)
+      - builds ip→domain index for IP-only matches
+  Detectors:
+    _detect_malicious_site_visits       → MALICIOUS_SITE_VISIT
+    _detect_suspicious_ips              → MALICIOUS_SOURCE, MALICIOUS_DESTINATION
+    _detect_suspicious_host_activity    → SUSPICIOUS_HOST_ACTIVITY (heuristics)
+
+H. DEPLOYMENT
+-------------
+  Frontend: Vercel auto-deploys on push to main.
+            chaosfaction.xyz fronts the Next.js app via Nginx + Let's Encrypt
+            (see deploy/nginx/chaosfaction.xyz.conf).
+  Backend:  Manual setup required. Recommended Railway.app or Render.com
+            with uvicorn app.main:app --host 0.0.0.0 --port $PORT.
+  After deploying backend, set NEXT_PUBLIC_API_URL on Vercel to the
+  backend's public URL (rewrites in next.config.mjs will proxy /api).
+
+================================================================================
+SECTION 3 — DETECTION ENGINE (threat_detection.py)
+================================================================================
+
+The threat engine runs 12 confirmed-threat detectors on each threat scan:
+
+  Confirmed detectors (run on every detect_threats call):
+    1.  _detect_statistical_anomalies        TRAFFIC_SPIKE, BANDWIDTH_ANOMALY
+    2.  _detect_port_scanning                PORT_SCAN, SYN_FLOOD
+    3.  _detect_malicious_site_visits        MALICIOUS_SITE_VISIT
+                                             (matches via DNS / TLS SNI / HTTP Host / IP)
+    4.  _detect_unencrypted_http_activity    UNENCRYPTED_HTTP_ACTIVITY (port 80 / 8080)
+    5.  _detect_suspicious_host_activity     SUSPICIOUS_HOST_ACTIVITY
+                                             (punycode, risky TLDs, long/entropy,
+                                              deep subdomain chain, keywords)
+    6.  _detect_suspicious_ips               MALICIOUS_SOURCE, MALICIOUS_DESTINATION
+    7.  _detect_protocol_anomalies           SUSPICIOUS_PORT_USAGE, ICMP_ANOMALY
+    8.  _detect_ddos_patterns                DDOS_PATTERN
+    9.  _detect_suspicious_dns_activity      SUSPICIOUS_DNS_ACTIVITY, DNS_TUNNELING
+                                             (Shannon entropy + long labels)
+    10. _detect_beaconing_activity           BEACONING_ACTIVITY
+                                             (regular callback timing + size)
+    11. _detect_data_exfiltration            DATA_EXFILTRATION
+                                             (volume + ratio + avg packet size)
+  12. (implicit packet sniff path: Scapy + HTTP/TLS host extraction
+       + DNS qname extraction + proxy CONNECT/HTTP recording)
+
+  Hunt/lead detectors (run when /api/threats/hunt is called, lower thresholds):
+    - _hunt_dns_leads          SUSPICIOUS_DNS_LEAD, DNS_TUNNELING_LEAD
+    - _hunt_beaconing_leads    BEACONING_LEAD
+    - _hunt_outbound_connection_leads  UNCOMMON_OUTBOUND_CONNECTION
+    - _hunt_exfiltration_leads EXFILTRATION_LEAD
+
+  Severity ladder (from threat_score):
+    ≥ 0.88 → CRITICAL
+    ≥ 0.72 → HIGH
+    ≥ 0.52 → MEDIUM
+    else   → LOW
+
+  Threat dedup key = "|".join([type, src_ip, dst_ip, dst_host, dst_port, desc])
+  Threat ID      = sha1(dedup_key)[:16] prefixed with "threat_"
+
+  Benign-system-host allowlist (skips noise from OS connectivity probes):
+    captive.apple.com, connectivitycheck.android.com, msftconnecttest.com,
+    detectportal.firefox.com, connect.rom.miui.com, nmcheck.gnome.org,
+    cp.cloudflare.com, plus suffix allowlist for apple/icloud/microsoft/
+    mozilla/miui/xiaomi/hicloud/samsung/google/googleapis domains.
+
+  Suspicious-host heuristic keywords:
+    crack, keygen, payload, dropper, stealer, exploit, loader
+
+================================================================================
+SECTION 4 — IDENTIFIED ISSUES & CONCERNS
+================================================================================
+
+A. CONFIGURATION / BUILD
+------------------------
+  [A1] next.config.mjs: typescript.ignoreBuildErrors = true
+       → Hides real TypeScript errors at build time. Several `any` types and
+         a few unsafe casts in components pass silently (e.g. settings state
+         `useState<any>({})` in admin.tsx). Recommend setting to false and
+         fixing the actual TS errors.
+
+  [A2] postcss.config.mjs only registers `tailwindcss` — no autoprefixer
+       plugin. Works because package.json includes `@tailwindcss/postcss`
+       4.1.13, but mixing Tailwind v3.4 (`tailwindcss`) with Tailwind v4
+       tooling (`@tailwindcss/postcss`) is unusual and can produce duplicate
+       transformations. Pick one version and align the PostCSS pipeline.
+
+  [A3] frontend/styles/globals.css exists alongside frontend/app/globals.css
+       with different theme variable values. The latter is the active one
+       (imported from app/layout.tsx). Delete styles/globals.css to remove
+       confusion, OR explicitly import one of them.
+
+  [A4] Two CSS file locations duplicate the same @tailwind directives.
+
+  [A5] .gitignore includes literal "info for project.txt" and
+       "info for project frontend.txt" — looks like a leftover from earlier
+       file naming. Harmless but worth cleaning.
+
+  [A6] components/ui/use-mobile.tsx and components/ui/use-toast.ts exist
+       alongside hooks/use-mobile.tsx and hooks/use-toast.ts — duplicate
+       helpers. Consolidate to hooks/.
+
+  [A7] `frontend/package.json` lists many unused Radix components and a
+       number of declared-but-unused packages (axios, recharts barely used,
+       input-otp, embla-carousel, vaul, cmdk, react-resizable-panels).
+       The frontend/OPTIMIZATION.md file already lists these — they
+       remain unpruned.
+
+  [A8] requirements-dev.txt first line is `-r requirements.txt` but the
+       file lives next to it; if installed from a different cwd the -r
+       path can break. Use `pip install -r requirements.txt -r requirements-dev.txt`
+       or absolute path.
+
+  [A9] main.py uses the deprecated `@app.on_event("startup")` /
+       `@app.on_event("shutdown")` decorators. FastAPI recommends the new
+       `lifespan` async context manager (the deprecation is non-fatal today).
+
+B. CODE QUALITY / RUNTIME BEHAVIOR
+----------------------------------
+  [B1] In-memory state means a backend restart wipes every capture,
+       threat, blocked site, notification, and user. There is no persistence
+       layer — no DB, no SQLite, no JSON snapshot. Documented as a BETA
+       constraint but worth flagging for prod hardening.
+
+  [B2] users_store is plain in-memory list with hardcoded `admin@chaosfaction.com`
+       and `viewer@chaosfaction.com`. No auth, no hashing — anyone with the
+       API can hit /api/users to list/create/delete users. The dashboard
+       header fetches the FIRST user and shows it as the logged-in identity.
+       This is NOT secure; treat the admin/user API as demo-only.
+
+  [B3] PacketCaptureService.packets is a list capped at 1000 with FIFO drop
+       (`self.packets.pop(0)`). For sustained capture windows the data shown
+       in the dashboard is always the most recent ~1000 packets, which can
+       silently drop beaconing/exfiltration evidence across long captures.
+
+  [B4] detect_threats() runs on EVERY dashboard poll (5 s). With 1000 packets
+       the per-call cost is small, but the 12 detectors iterate the whole
+       list each time (O(N) per detector, no incremental update). This is
+       fine for BETA, will not scale to high-rate capture.
+
+  [B5] `frontend/components/dashboard/admin.tsx` uses `useState<any>({})`
+       for settings — no schema validation; relies on backend defaults to
+       fill missing keys.
+
+  [B6] `frontend/components/dashboard/threats.tsx` `OSProtection` is a
+       hardcoded static widget ("Protection Status: HEALTHY", 95% bar) —
+       not wired to any real signal. Misleading name: nothing here is
+       actually OS-protection telemetry.
+
+  [B7] The "Threat Watch" panel in threats.tsx shows ONE threat at a time
+       with prev/next buttons. When there are 0 threats and excludeLow=true,
+       the empty-state copy is correct, but the loading state still appears
+       for the first 5 s on every refresh cycle.
+
+  [B8] PacketInspectionPanel calls `getPackets(20)` every 5 s but then
+       only `slice(0, 10)`. Wasted fetch — request limit=10 directly.
+
+  [B9] SettingsPanel saves pps_threshold/port_scan_threshold/alert_level
+       but never re-fetches or re-renders with the new values — no toast
+       library is used despite sonner being installed; alerts are plain
+       window.alert() and window.confirm() in admin.tsx (BlocksActions
+       uses alert() — bad UX).
+
+  [B10] dashboard-header.tsx's notifications dropdown stores dismissed
+        alert ids in a useRef and never persists them — the "Archive"
+        list lives in component state only; refresh of the page or
+        component remount loses the archive.
+
+  [B11] The mobile_proxy.py parses request lines by splitting on whitespace
+        without size limits beyond default StreamReader buffer. A malicious
+        phone sending a giant header could exhaust memory. Same for the
+        CONNECT branch — no host allowlist before opening remote connections.
+
+  [B12] _resolve_host_ip (in packet_capture.py) does a blocking
+        socket.getaddrinfo() on every HTTP_PROXY observation; on a busy
+        phone this can stall the asyncio loop. Should be offloaded via
+        asyncio.to_thread.
+
+  [B13] proxy_service.drop_connections_for_domain only closes writers; it
+        does NOT send an HTTP response to the client. Phone users see a
+        connection drop, not the styled "blocked" HTML page — that's only
+        sent for new requests (via _send_blocked_response). Active sessions
+        just hang up.
+
+  [B14] The dashboard uses Next.js 16 + React 19 with several Radix
+        primitives and `next-themes 0.4.6`. Next-themes 0.4 has known
+        issues with React 19 SSR hydration when paired with `suppressHydrationWarning`
+        — that's why both html and body suppress warnings in layout.tsx.
+        Worth tracking.
+
+  [B15] next.config.mjs sets experimental.optimizePackageImports for
+        `@radix-ui/react-dialog`, etc. — but the components.json shadcn
+        import path is `@/components/ui` and these are imported directly,
+        so tree-shaking mostly works. No bug, just a note.
+
+  [B16] README still says "Live at https://chaosfaction.xyz/" while
+        layout.tsx / sidebar / page.tsx have been rebranded to "NetGuard".
+        Live site branding and project name disagree — pick one and update
+        both the README, the page.tsx headings, and the deploy nginx
+        config accordingly.
+
+  [B17] PROJECT_DOCUMENTATION.md is dated March 1 2026 and still references
+        `app/ml/`, separate route files (api/traffic.py, api/threats.py,
+        api/packets.py, api/admin.py, api/notifications.py) and an
+        `app/services/` folder with subfolders that do not exist anymore.
+        Several sections describe a folder layout that no longer matches
+        the code. Update or deprecate this doc.
+
+  [B18] OPTIMIZATION_COMPLETE.md and frontend/OPTIMIZATION.md both describe
+        consolidations that have been applied — but still list actions
+        like "remove unused Radix" / "add dynamic imports" that haven't
+        been done. Treat as TODO backlog, not a record of completed work.
+
+  [B19] The single test file `backend/tests/test_threat_hunt.py` covers
+        only the threat-hunt endpoint. No tests for packet capture,
+        proxy, or other routers. The `backend/tests/` folder otherwise
+        is empty besides __pycache__.
+
+C. SECURITY / NETWORK
+---------------------
+  [C1] The proxy binds 0.0.0.0:8888 by default. Anyone on the LAN can route
+       traffic through it (and bypass the watched-site blocklist, since the
+       proxy only blocks KNOWN_MALICIOUS_DOMAINS/IPS from .env). On a shared
+       Wi-Fi this is an open relay.
+
+  [C2] The CONNECT branch tunnels traffic to ANY host:port (no allowlist).
+       Combined with C1, this is effectively an open forward proxy.
+
+  [C3] CORS is configured as `allow_origins = [ALLOWED_ORIGINS.split(",")]`
+       — defaults to "http://localhost:3000". In production, set a real
+       origin and keep `allow_credentials=True` only when needed.
+
+  [C4] The .env.example documents KNOWN_MALICIOUS_DOMAINS but the value
+       in the repo is empty. Until the operator seeds it, the system only
+       sees behavior-based detections, not first-class watched-site hits
+       (README mentions this explicitly, but it's an easy footgun).
+
+  [C5] There is no rate limiting on any endpoint. /api/packets/capture/start
+       can be triggered repeatedly. /api/threats/{id}/respond and
+       /api/users endpoints have no auth.
+
+  [C6] Threat-detection relies on socket.getaddrinfo for watched-domain
+       resolution. This makes an outbound DNS query at startup and caches
+       the result forever. If a domain's IP rotates, the IP-index lookup
+       will miss until backend restart.
+
+  [C7] The system uses Scapy in-process. On macOS it requires admin; on
+       Windows it requires Npcap. Both are documented but not enforced —
+       the API will accept capture requests and return a user-friendly
+       error string. The "frontend" can't recover; user must restart with
+       the capture script.
+
+  [C8] ML is mentioned in PROJECT_DOCUMENTATION.md ("backend/app/ml/") but
+       the ml/ folder does NOT exist. /api/threats/analyze returns a
+       hardcoded `ml_score: 0.65`. Any expectation of real ML is not met.
+
+D. UX / DOCUMENTATION
+---------------------
+  [D1] Dashboard sidebar has a "Logout" link that points to `/login`,
+       but there is no /login page (it was removed during the optimization
+       pass). Clicking it 404s.
+
+  [D2] Landing page header links to `/login` and `/signup` — both pages
+       were removed. The "Create Account" CTA 404s.
+
+  [D3] README quick-start mentions Npcap and Windows admin prompts but
+       the macOS capture script's "sudo -v" path does NOT actually verify
+       password; if sudo cache is cold, the script proceeds and the
+       backend process will later fail to bind /dev/bpf* with a less
+       helpful error.
+
+  [D4] README references a `KNOWN_MALICIOUS_DOMAINS` example that uses
+       `tlauncher.org=HIGH` — confirmed real domain in the .env.example
+       comment, but never seeded in .env.example's actual value. Confusing.
+
+  [D5] `ss.txt` (project code snapshots TODO) at the repo root is project
+       documentation guidance, but `.gitignore` excludes other "info for
+       project" files. Inconsistent — pick a policy.
+
+  [D6] ThreatDetectionService exposes `pps_threshold` and
+       `port_scan_threshold` to the admin PUT endpoint, but the
+       SettingsPanel only saves those three values; other settings
+       (`capture_enabled`, `anomaly_detection_enabled`, `auto_block`,
+       `backup_enabled`) come back from GET but are shown as disabled
+       switches the user can't toggle. Confusing dead UI.
+
+================================================================================
+SECTION 5 — RECOMMENDED FIX ORDER
+================================================================================
+
+  Quick wins (≤ 30 min each):
+    1. Remove dead /login & /signup links in app/page.tsx and dashboard-sidebar.tsx
+    2. Remove frontend/styles/globals.css duplicate
+    3. Remove unused components/ui/use-mobile.tsx, components/ui/use-toast.ts
+    4. Set typescript.ignoreBuildErrors = false; address real TS errors
+    5. Migrate @app.on_event startup/shutdown → lifespan context manager
+    6. Wire OSProtection to a real signal (proxy listening / packet stats)
+    7. Replace alert()/confirm() in admin.tsx with sonner toasts
+    8. Fix PacketInspectionPanel to fetch limit=10 (not 20)
+
+  Medium (1–3 hours):
+    9. Persist at least users_store, blocked_domains, notifications
+       (SQLite via aiosqlite, or a JSON snapshot)
+    10. Offload _resolve_host_ip to asyncio.to_thread
+    11. Add allowlist for CONNECT target host/port in mobile_proxy
+    12. Add basic auth middleware for /api/admin, /api/users
+    13. Update PROJECT_DOCUMENTATION.md to match current layout
+
+  Larger (>= half-day):
+    14. Decide between Tailwind v3 and v4; align PostCSS config
+    15. Persist packets/threats to a real DB; cap with sliding window
+    16. Add tests for packet_capture, mobile_proxy, routes
+    17. Build the missing ML layer (currently returns a hardcoded 0.65)
+    18. Rebrand uniformly (NetGuard vs ChaosFaction) across README,
+        nginx config, page titles, sidebar.
+
+================================================================================
+END OF info.txt
+================================================================================
