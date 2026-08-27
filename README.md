@@ -121,7 +121,7 @@ The dashboard will only raise `MALICIOUS_SITE_VISIT` if you have added real watc
 ### Mobile Testing
 
 The intended flow is:
-- your Mac runs the dashboard and monitoring backend
+- your system runs the dashboard and monitoring backend
 - your phone is only a client using the local proxy
 - the phone does not need to open the dashboard
 
@@ -132,7 +132,7 @@ The intended flow is:
 2. Look for the printed proxy address such as `192.168.0.101:8888`
 3. On your phone, use the Wi-Fi proxy settings:
    `Wi-Fi -> your network -> Configure Proxy -> Manual`
-4. Set `Server` to your Mac LAN IP and `Port` to `8888`
+4. Set `Server` to your  LAN IP and `Port` to `8888`
 5. Visit a watched site on the phone while the Mac dashboard stays open locally
 
 Important:
