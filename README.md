@@ -21,7 +21,7 @@ project-root/
 
 ### Local Development
 
-**macOS / Linux**
+**Shell Setup**
 ```bash
 ./scripts/setup-local.sh
 ./scripts/dev-local.sh
@@ -35,13 +35,6 @@ You can also run a quick dependency check without starting the app:
 ```bash
 ./scripts/dev-local.sh --check
 ```
-
-If you want packet capture on macOS, use:
-```bash
-./scripts/dev-local-capture.sh
-```
-
-Note: native packet capture on macOS needs admin permissions because Scapy must access `/dev/bpf*`.
 
 **Windows PowerShell**
 ```powershell
@@ -103,11 +96,11 @@ Notes:
 - A host or DNS match keeps the configured severity.
 - An IP-only match is still useful, but it is treated as slightly lower confidence because shared hosting and CDNs can reuse the same IP.
 
-For a macOS live packet-capture test:
+For a Windows live packet-capture test:
 
 1. Start capture mode:
-```bash
-./scripts/dev-local-capture.sh
+```powershell
+.\scripts\dev-local-capture.ps1
 ```
 2. Open `http://localhost:3000/dashboard`
 3. Start a longer capture:
@@ -126,20 +119,20 @@ The intended flow is:
 - the phone does not need to open the dashboard
 
 1. Start capture mode:
-```bash
-./scripts/dev-local-capture.sh
+```powershell
+.\scripts\dev-local-capture.ps1
 ```
 2. Look for the printed proxy address such as `192.168.0.101:8888`
 3. On your phone, use the Wi-Fi proxy settings:
    `Wi-Fi -> your network -> Configure Proxy -> Manual`
 4. Set `Server` to your  LAN IP and `Port` to `8888`
-5. Visit a watched site on the phone while the Mac dashboard stays open locally
+5. Visit a watched site on the phone while the Windows dashboard stays open locally
 
 Important:
 - The phone does not need dashboard access.
 - The local proxy mode is the easiest way to route phone website traffic through the backend without reconfiguring your whole network.
 - HTTPS websites still work in proxy mode because the proxy records the destination host from the CONNECT request and tunnels the traffic through unchanged.
-- The same idea works on Windows capture mode too: start the capture script, copy the printed proxy IP, and use that as the phone's manual proxy host.
+- Start the Windows capture script, copy the printed proxy IP, and use that as the phone's manual proxy host.
 
 ## 🔌 API Endpoints
 

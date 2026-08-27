@@ -1,5 +1,5 @@
 // Central frontend API client used to talk to the FastAPI backend.
-// API Utility Functions for ChaosFaction Backend
+// API utility functions for the NetGuard backend.
 
 const DEFAULT_HEADERS = {
   "Content-Type": "application/json",

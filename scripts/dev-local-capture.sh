@@ -125,7 +125,7 @@ echo "Starting frontend on http://localhost:3000"
 frontend_pid=$!
 
 echo
-echo "ChaosFaction capture mode is starting."
+echo "NetGuard capture mode is starting."
 echo "Frontend: http://localhost:3000"
 echo "Backend:  http://localhost:8000"
 if [ -n "$lan_ip" ]; then
@@ -133,12 +133,12 @@ if [ -n "$lan_ip" ]; then
     echo "Proxy:    $lan_ip:$PROXY_PORT"
   fi
 fi
-echo "Packet capture should work if macOS grants access to /dev/bpf."
+echo "Packet capture should work when elevated access is available."
 if [ "$PROXY_ENABLED" = "1" ] && [ -n "$lan_ip" ]; then
   echo "On your phone Wi-Fi settings, set Manual Proxy -> Server $lan_ip Port $PROXY_PORT."
   echo "Leave Unused Sites empty unless your phone requires otherwise."
-  echo "Then browse watched sites on the phone; only the Mac dashboard needs to stay open."
-  echo "If the phone loses access later, unblock the site from the Mac dashboard or set the phone proxy back to None."
+  echo "Then browse watched sites on the phone; only the Windows dashboard needs to stay open."
+  echo "If the phone loses access later, unblock the site from the Windows dashboard or set the phone proxy back to None."
 else
   echo "Phone traffic only appears in captures if the phone is routing traffic through this machine."
 fi

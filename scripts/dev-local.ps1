@@ -97,7 +97,7 @@ Start-Process -FilePath $ShellExe -ArgumentList @("-NoExit", "-Command", $Backen
 Start-Process -FilePath $ShellExe -ArgumentList @("-NoExit", "-Command", $FrontendCommandBlock) -WorkingDirectory $FrontendDir | Out-Null
 
 Write-Host ""
-Write-Host "ChaosFaction is starting in separate PowerShell windows."
+Write-Host "NetGuard is starting in separate PowerShell windows."
 Write-Host "Frontend: http://localhost:3000"
 Write-Host "Backend:  http://localhost:8000"
 Write-Host "Close the two PowerShell windows to stop the app."

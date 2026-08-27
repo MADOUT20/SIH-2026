@@ -519,9 +519,9 @@ class MobileProxyService:
     async def _send_blocked_response(writer: asyncio.StreamWriter, destination_host: str) -> None:
         body = (
             "<html><body style=\"font-family:Arial,sans-serif;padding:24px;line-height:1.5;\">"
-            "<h2>Website blocked by ChaosFaction</h2>"
-            f"<p>Access to <strong>{destination_host}</strong> was blocked from the Mac dashboard.</p>"
-            "<p>Open the dashboard on the Mac and unblock the site to restore access.</p>"
+            "<h2>Website blocked by NetGuard</h2>"
+            f"<p>Access to <strong>{destination_host}</strong> was blocked from the Windows dashboard.</p>"
+            "<p>Open the dashboard on Windows and unblock the site to restore access.</p>"
             "</body></html>"
         )
         await MobileProxyService._send_error(

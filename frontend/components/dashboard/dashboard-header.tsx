@@ -17,7 +17,7 @@ import { UserProfileModal } from "@/components/user-profile-modal"
 import Link from "next/link"
 import { getNotifications, getUsers, type Notification, type User as AppUser } from "@/lib/api"
 
-const DASHBOARD_REFRESH_EVENT = "chaosfaction:dashboard-refresh"
+const DASHBOARD_REFRESH_EVENT = "netguard:dashboard-refresh"
 
 const tabLabels: Record<string, string> = {
   overview: "Dashboard Overview",

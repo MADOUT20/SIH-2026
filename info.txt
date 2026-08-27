@@ -1,12 +1,11 @@
 ================================================================================
-  NetGuard (formerly ChaosFaction) — Project Information
+  NetGuard — Project Information
   Network-Level Malware Detection System (BETA)
 ================================================================================
 
-  Generated: 2026-08-21
+  Generated: 2026-08-28
   Branch:    main
-  Live at:   https://chaosfaction.xyz/   (Vercel — frontend only)
-  Status:    BETA — local dev working; backend deployed separately
+
 
 ================================================================================
 SECTION 1 — TECH STACK
@@ -18,7 +17,7 @@ SECTION 1 — TECH STACK
   ASGI Server:    Uvicorn 0.41.0 (dev: --reload)
   Data Validation: Pydantic 2.12.5
   Config:         python-dotenv 1.2.1  (.env loaded at startup)
-  Packet Capture: Scapy 2.7.0           (native /dev/bpf* on macOS, Npcap on Win)
+  Packet Capture: Scapy 2.7.0           (Npcap on Windows; elevated access needed)
   Async Runtime:  asyncio + raw asyncio.start_server for the local HTTP proxy
   Dev Tooling:    httpx 0.25.2, pytest 7.4.3, pytest-asyncio 0.21.1,
                   black 23.12, flake8 6.1, mypy 1.7.1
@@ -117,7 +116,7 @@ SECTION 1 — TECH STACK
                - Let's Encrypt SSL (chaosfaction.xyz, www.chaosfaction.xyz)
                - Reverse proxy to Next.js on 127.0.0.1:3000
   Frontend host: Vercel (auto-deploy on git push)
-  Backend host:  Local Mac/Windows for dev; Railway/Render suggested for prod
+  Backend host:  Local Windows for dev; Railway/Render suggested for prod
   DNS/SSL:      chaosfaction.xyz + www alias; certbot /.well-known path
 
 --- DATA / STATE ---
@@ -136,7 +135,7 @@ SECTION 2 — WORKFLOW
 
 A. LOCAL SETUP (one-time)
 --------------------------
-  macOS / Linux:
+  Shell setup:
     ./scripts/setup-local.sh
         - finds python3.10..3.13
         - creates backend/.venv (if missing)
@@ -161,7 +160,7 @@ B. LOCAL DEV (no packet capture / no proxy)
 
 C. CAPTURE + PHONE PROXY MODE
 -----------------------------
-  macOS:
+  Windows:
     ./scripts/dev-local-capture.sh
         - requests sudo (admin) at start
         - sudo python -m uvicorn … with PROXY_ENABLED=1 PROXY_HOST=0.0.0.0 PROXY_PORT=8888
@@ -177,7 +176,7 @@ C. CAPTURE + PHONE PROXY MODE
 
 D. PHONE TESTING FLOW
 ---------------------
-  1. Start capture mode on the Mac.
+  1. Start capture mode on Windows.
   2. Capture script prints "Proxy: <lan-ip>:8888".
   3. On phone: Wi-Fi → Manual Proxy → Server=<lan-ip>, Port=8888.
   4. Browse any site — traffic goes through FastAPI's asyncio HTTP proxy.
@@ -245,7 +244,7 @@ F. THREAT RESPONSE FLOW
       └─ pushes a RESPONSE_ACTION notification
       │
       ▼
-  Dashboard refresh event "chaosfaction:dashboard-refresh" fires
+  Dashboard refresh event "netguard:dashboard-refresh" fires
       └─► all panels re-poll their endpoints
 
 G. WATCHED DOMAINS / INTEL
@@ -378,8 +377,8 @@ B. CODE QUALITY / RUNTIME BEHAVIOR
        layer — no DB, no SQLite, no JSON snapshot. Documented as a BETA
        constraint but worth flagging for prod hardening.
 
-  [B2] users_store is plain in-memory list with hardcoded `admin@chaosfaction.com`
-       and `viewer@chaosfaction.com`. No auth, no hashing — anyone with the
+  [B2] users_store is plain in-memory list with hardcoded `admin@netguard.local`
+       and `viewer@netguard.local`. No auth, no hashing — anyone with the
        API can hit /api/users to list/create/delete users. The dashboard
        header fetches the FIRST user and shows it as the logged-in identity.
        This is NOT secure; treat the admin/user API as demo-only.
@@ -449,18 +448,16 @@ B. CODE QUALITY / RUNTIME BEHAVIOR
         import path is `@/components/ui` and these are imported directly,
         so tree-shaking mostly works. No bug, just a note.
 
-  [B16] README still says "Live at https://chaosfaction.xyz/" while
+  [B16] The live frontend domain still uses the legacy naming while
         layout.tsx / sidebar / page.tsx have been rebranded to "NetGuard".
         Live site branding and project name disagree — pick one and update
         both the README, the page.tsx headings, and the deploy nginx
         config accordingly.
 
-  [B17] PROJECT_DOCUMENTATION.md is dated March 1 2026 and still references
-        `app/ml/`, separate route files (api/traffic.py, api/threats.py,
-        api/packets.py, api/admin.py, api/notifications.py) and an
-        `app/services/` folder with subfolders that do not exist anymore.
-        Several sections describe a folder layout that no longer matches
-        the code. Update or deprecate this doc.
+  [B17] PROJECT_DOCUMENTATION.md has been refreshed and now matches the
+        current consolidated repo layout more closely. Keep it in sync with
+        future routing, env var, and deployment changes so this project does
+        not drift back into contradictory documentation.
 
   [B18] OPTIMIZATION_COMPLETE.md and frontend/OPTIMIZATION.md both describe
         consolidations that have been applied — but still list actions
@@ -500,15 +497,15 @@ C. SECURITY / NETWORK
        the result forever. If a domain's IP rotates, the IP-index lookup
        will miss until backend restart.
 
-  [C7] The system uses Scapy in-process. On macOS it requires admin; on
-       Windows it requires Npcap. Both are documented but not enforced —
+  [C7] The system uses Scapy in-process. On Windows it requires Npcap and
+       Administrator access. These requirements are documented but not enforced —
        the API will accept capture requests and return a user-friendly
        error string. The "frontend" can't recover; user must restart with
        the capture script.
 
-  [C8] ML is mentioned in PROJECT_DOCUMENTATION.md ("backend/app/ml/") but
-       the ml/ folder does NOT exist. /api/threats/analyze returns a
-       hardcoded `ml_score: 0.65`. Any expectation of real ML is not met.
+  [C8] There is still no real ML pipeline in the backend. The
+       `/api/threats/analyze` response includes a hardcoded `ml_score: 0.65`,
+       so any expectation of trained-model inference is not met yet.
 
 D. UX / DOCUMENTATION
 ---------------------
@@ -519,11 +516,10 @@ D. UX / DOCUMENTATION
   [D2] Landing page header links to `/login` and `/signup` — both pages
        were removed. The "Create Account" CTA 404s.
 
-  [D3] README quick-start mentions Npcap and Windows admin prompts but
-       the macOS capture script's "sudo -v" path does NOT actually verify
-       password; if sudo cache is cold, the script proceeds and the
-       backend process will later fail to bind /dev/bpf* with a less
-       helpful error.
+  [D3] README quick-start mentions Npcap and Windows admin prompts, but
+       the project still includes a shell capture script alongside the
+       PowerShell flow. Keep the Windows path as the primary supported
+       runbook so the instructions stay consistent.
 
   [D4] README references a `KNOWN_MALICIOUS_DOMAINS` example that uses
        `tlauncher.org=HIGH` — confirmed real domain in the .env.example
@@ -560,14 +556,14 @@ SECTION 5 — RECOMMENDED FIX ORDER
     10. Offload _resolve_host_ip to asyncio.to_thread
     11. Add allowlist for CONNECT target host/port in mobile_proxy
     12. Add basic auth middleware for /api/admin, /api/users
-    13. Update PROJECT_DOCUMENTATION.md to match current layout
+    13. Keep PROJECT_DOCUMENTATION.md and info.txt aligned with the current layout
 
   Larger (>= half-day):
     14. Decide between Tailwind v3 and v4; align PostCSS config
     15. Persist packets/threats to a real DB; cap with sliding window
     16. Add tests for packet_capture, mobile_proxy, routes
     17. Build the missing ML layer (currently returns a hardcoded 0.65)
-    18. Rebrand uniformly (NetGuard vs ChaosFaction) across README,
+    18. Rebrand uniformly across README,
         nginx config, page titles, sidebar.
 
 ================================================================================

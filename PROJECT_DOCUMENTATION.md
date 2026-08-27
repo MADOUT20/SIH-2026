@@ -1,8 +1,7 @@
-# ChaosFaction - Project Documentation
+# Project Documentation
 
 **Project:** Network Security Dashboard  
-**Status:** Live at https://chaosfaction.xyz/  
-**Date:** March 1, 2026
+**Reviewed Against Repository:** August 28, 2026
 
 ---
 
@@ -12,34 +11,33 @@
 2. [Quick Start](#quick-start)
 3. [Folder Descriptions](#folder-descriptions)
 4. [API Endpoints](#api-endpoints)
-5. [Deployment](#deployment)
+5. [Environment Variables](#environment-variables)
+6. [Technology Stack](#technology-stack)
+7. [Commands](#commands)
 
 ---
 
 ## Project Structure
 
-```
+```text
 project-root/
-│
-├── frontend/                 # Next.js UI (Deployed on Vercel)
-│   ├── app/                 # Pages & routes
-│   ├── components/          # React components
-│   │   ├── dashboard/       # Dashboard UI
-│   │   └── ui/              # Reusable UI library
-│   ├── hooks/               # Custom React hooks
-│   ├── lib/                 # Utilities
+├── frontend/                 # Next.js dashboard and landing page
+│   ├── app/                  # Route entry points
+│   ├── components/           # Dashboard and reusable UI components
+│   ├── hooks/                # Frontend hooks
+│   ├── lib/                  # API client and utilities
 │   └── package.json
-│
-├── backend/                  # FastAPI (Deploy on Railway/Render)
+├── backend/                  # FastAPI backend
 │   ├── app/
-│   │   ├── main.py         # Entry point
-│   │   ├── api/            # Route handlers
-│   │   ├── models/         # Data schemas
-│   │   ├── services/       # Business logic
-│   │   └── ml/             # ML models
-│   └── requirements.txt
-│
-├── scripts/                 # Local setup/run helpers
+│   │   ├── main.py           # FastAPI bootstrap and router registration
+│   │   ├── api/              # Consolidated route definitions
+│   │   ├── models/           # Shared schema definitions
+│   │   ├── services/         # Packet capture, threat detection, traffic analysis, proxy
+│   │   └── utils/            # Helper utilities
+│   ├── requirements.txt
+│   └── requirements-dev.txt
+├── scripts/                  # Local setup and run helpers
+├── deploy/                   # Deployment-related config
 └── README.md
 ```
 
@@ -55,21 +53,28 @@ project-root/
 ./scripts/dev-local.sh
 ```
 
+This starts:
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:8000`
+
+**Packet capture mode on Windows:**
+```powershell
+.\scripts\dev-local-capture.ps1
+```
+
 **Manual backend run:**
 ```bash
 cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
-→ http://localhost:8000
 
-**Terminal 2 - Frontend:**
+**Manual frontend run:**
 ```bash
 cd frontend
 pnpm install
 pnpm dev
 ```
-→ http://localhost:3000
 
 ---
 
@@ -77,204 +82,126 @@ pnpm dev
 
 ### Frontend (`/frontend`)
 
-- **`app/`** - Next.js pages (landing, dashboard, login, etc)
-- **`components/dashboard/`** - Dashboard UI (charts, threats, packets, etc)
-- **`components/ui/`** - Shadcn/UI components (buttons, cards, modals, etc)
-- **`hooks/`** - Custom hooks (toast notifications, mobile detection)
-- **`lib/`** - Utility functions
+- `app/` - Route entry points for the landing page and dashboard
+- `components/dashboard/` - Dashboard panels for traffic, threats, alerts, and admin views
+- `components/ui/` - Reusable Shadcn/Radix-based UI components
+- `hooks/` - Frontend hooks such as toast and mobile helpers
+- `lib/` - API client and shared utilities
 
 ### Backend (`/backend`)
 
-- **`api/`** - REST endpoints
-  - `traffic.py` - Network traffic data
-  - `threats.py` - Threat detection & response
-  - `packets.py` - Packet capture & inspection
-  - `admin.py` - Admin settings
-
-- **`models/`** - Request/response schemas
-- **`services/`** - Business logic (packet processing, threat detection)
-- **`ml/`** - ML models for threat detection
-
----
-
-## How to Use
-
-### Add a New Page
-```bash
-# Create in frontend/app/
-touch frontend/app/new-page/page.tsx
-```
-
-### Add a New API Endpoint
-```python
-# Create in backend/app/api/
-# backend/app/api/new_feature.py
-
-from fastapi import APIRouter
-
-router = APIRouter(prefix="/api", tags=["feature"])
-
-@router.get("/new-endpoint")
-async def get_data():
-    return {"data": "your data"}
-```
-
-Then add to `backend/app/main.py`:
-```python
-from .api import new_feature
-app.include_router(new_feature.router)
-```
-
-### Call API from Frontend
-```typescript
-const response = await fetch(
-  `${process.env.NEXT_PUBLIC_API_URL}/api/new-endpoint`
-);
-const data = await response.json();
-```
+- `app/main.py` - App bootstrap, CORS setup, startup/shutdown hooks, router registration
+- `app/api/routes.py` - Consolidated API routes for traffic, threats, packets, admin, notifications, health, and users
+- `app/models/` - Pydantic schema definitions
+- `app/services/packet_capture.py` - Scapy-based packet capture and packet normalization
+- `app/services/threat_detection.py` - Threat detection, threat hunting, watchlist matching, and response logic
+- `app/services/traffic_analysis.py` - Traffic summaries and protocol/application analysis
+- `app/services/mobile_proxy.py` - Local HTTP/HTTPS proxy for mobile testing
+- `app/utils/` - Backend helper utilities
 
 ---
 
 ## API Endpoints
 
-### Traffic
-```
-GET /api/traffic
-  → Returns traffic statistics (packets, bytes, protocols)
+### Health
 
+```text
+GET /health
+```
+
+### Traffic
+
+```text
+GET /api/traffic
+GET /api/traffic/by-protocol
+GET /api/traffic/by-port
+GET /api/traffic/by-application
+GET /api/traffic/connections
+GET /api/traffic/bandwidth-prediction
 GET /api/traffic/history
-  → Returns traffic over time for charts
 ```
 
 ### Threats
-```
-GET /api/threats
-  → Get detected threats (severity, status)
 
-POST /api/threats/{threat_id}/respond
-  → Take action (block, alert, ignore)
-
+```text
+GET  /api/threats
+GET  /api/threats/hunt
+GET  /api/threats/{threat_id}/intelligence
 POST /api/threats/analyze
-  → ML analysis on packet data
+POST /api/threats/{threat_id}/respond
 ```
 
 ### Packets
-```
-GET /api/packets
-  → Get captured packets
 
+```text
+GET  /api/packets
+GET  /api/packets/interfaces
+GET  /api/packets/statistics
+POST /api/packets/filter
 POST /api/packets/analyze
-  → Deep packet inspection
-
 POST /api/packets/capture/start
-  → Start capturing
-
 POST /api/packets/capture/stop
-  → Stop capturing
 ```
 
 ### Admin
-```
-GET /admin/dashboard
-  → Admin overview
 
-GET /admin/settings
-  → System settings
-
-PUT /admin/settings
-  → Update settings
-
-GET /admin/users
-  → List users
-```
-
----
-
-## ML Integration
-
-### Add a ML Model
-
-**1. Train & Save Model:**
-```python
-import pickle
-from sklearn.ensemble import RandomForestClassifier
-
-model = RandomForestClassifier(n_estimators=100)
-model.fit(X_train, y_train)
-
-pickle.dump(model, open("backend/app/ml/models/threat_model.pkl", "wb"))
+```text
+GET    /api/admin/dashboard
+GET    /api/admin/settings
+PUT    /api/admin/settings
+GET    /api/admin/threats-summary
+GET    /api/admin/traffic-summary
+GET    /api/admin/proxy-status
+GET    /api/admin/blocked-sites
+DELETE /api/admin/blocked-sites
+DELETE /api/admin/blocked-sites/{domain}
 ```
 
-**2. Load in Backend:**
-```python
-# backend/app/ml/threat_model.py
-import pickle
+### Notifications
 
-class ThreatModel:
-    def __init__(self):
-        self.model = pickle.load(open("models/threat_model.pkl", "rb"))
-    
-    def predict(self, features):
-        return self.model.predict_proba([features])[0][1]
-
-threat_model = ThreatModel()
+```text
+GET    /api/notifications
+POST   /api/notifications/{notif_id}/read
+DELETE /api/notifications/{notif_id}
 ```
 
-**3. Use in API:**
-```python
-# backend/app/api/threats.py
-from ..ml.threat_model import threat_model
+### Users
 
-@router.post("/threats/analyze")
-async def analyze(packet_data: dict):
-    threat_score = threat_model.predict(packet_data)
-    return {"is_threat": threat_score > 0.7, "score": threat_score}
-```
-
----
-
-## Deployment
-
-### Frontend (Already Live!)
-- **Site:** https://chaosfaction.xyz/
-- **Platform:** Vercel
-- **Auto-deploys** on git push
-
-### Backend (Manual Setup Required)
-
-#### Option 1: Railway.app
-1. Go to https://railway.app
-2. Import project from GitHub
-3. Set env variables: `BACKEND_PORT=8000`
-4. Deploy
-
-#### Option 2: Render.com
-1. Go to https://render.com
-2. Create Web Service
-3. Root dir: `backend`
-4. Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-
-### Update Frontend API URL
-After backend is deployed, update Vercel env:
-```
-NEXT_PUBLIC_API_URL=https://your-backend-url.com
+```text
+GET    /api/users
+POST   /api/users
+DELETE /api/users/{user_id}
 ```
 
 ---
 
 ## Environment Variables
 
-Create `.env.local` in both folders:
+### Frontend (`frontend/.env.local`)
 
-**Frontend (.env.local):**
-```
+```bash
+BACKEND_API_URL=http://localhost:8000
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-**Backend (.env.local):**
-```
-BACKEND_PORT=8000
+### Backend (`backend/.env`)
+
+```bash
 ALLOWED_ORIGINS=http://localhost:3000
+BACKEND_HOST=0.0.0.0
+BACKEND_PORT=8000
+ENVIRONMENT=development
+KNOWN_MALICIOUS_DOMAINS=
+KNOWN_MALICIOUS_IPS=
+```
+
+### Optional Proxy Settings
+
+```bash
+PROXY_ENABLED=1
+PROXY_HOST=0.0.0.0
+PROXY_PORT=8888
+CAPTURE_INTERFACE=
 ```
 
 ---
@@ -284,23 +211,36 @@ ALLOWED_ORIGINS=http://localhost:3000
 | Component | Tech |
 |-----------|------|
 | Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS |
-| Backend | FastAPI, Python 3.11 |
-| UI Library | Shadcn/UI |
-| ML | Scikit-learn |
-| Deployment | Vercel, Railway/Render |
+| UI Library | Shadcn/UI, Radix UI |
+| Backend | FastAPI, Python 3.11, Uvicorn |
+| Packet Capture | Scapy |
+| Deployment Assets | Vercel frontend, Nginx config in `deploy/nginx/` |
 
 ---
 
 ## Commands
 
 ```bash
+# Project setup
+./scripts/setup-local.sh
+
+# Start frontend and backend locally
+./scripts/dev-local.sh
+
+# Check whether local dependencies are ready
+./scripts/dev-local.sh --check
+
+# Start capture mode
+./scripts/dev-local-capture.sh
+
 # Frontend
-pnpm install
+cd frontend
 pnpm dev
 pnpm build
 pnpm lint
 
 # Backend
+cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 python -m pytest
@@ -308,14 +248,4 @@ python -m pytest
 
 ---
 
-## Next Steps
-
-1. ✅ Frontend running at localhost:3000
-2. ✅ Backend running at localhost:8000
-3. Deploy backend to Railway/Render
-4. Update `NEXT_PUBLIC_API_URL` in Vercel
-5. Add more ML models as needed
-
----
-
-**Questions?** Check `http://localhost:8000/docs` for interactive API documentation.
+Interactive backend docs are available at `http://localhost:8000/docs` when the API is running.

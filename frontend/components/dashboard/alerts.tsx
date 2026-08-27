@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { AlertCircle, Archive, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react"
 import { getNotifications, type Notification } from "@/lib/api"
 
-const DASHBOARD_REFRESH_EVENT = "chaosfaction:dashboard-refresh"
+const DASHBOARD_REFRESH_EVENT = "netguard:dashboard-refresh"
 
 function getSeverityBadge(severity: string): "destructive" | "secondary" {
   if (severity === "CRITICAL") return "destructive"

@@ -105,12 +105,12 @@ echo "Starting frontend on http://localhost:3000"
 frontend_pid=$!
 
 echo
-echo "ChaosFaction is starting without Docker."
+echo "NetGuard is starting without Docker."
 echo "Frontend: http://localhost:3000"
 echo "Backend:  http://localhost:8000"
 echo "Press Ctrl+C to stop both processes."
 echo
-echo "Note: packet capture on macOS may still need admin permissions."
+echo "Note: packet capture may still need elevated permissions."
 echo "If sniffing fails locally, the UI still works, but packet capture may need Docker or elevated privileges."
 echo "Phone traffic only appears in captures if the phone is routing traffic through this machine."
 

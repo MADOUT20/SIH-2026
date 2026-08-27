@@ -21,7 +21,7 @@ import {
   type ProxyClient,
 } from "@/lib/api"
 
-const DASHBOARD_REFRESH_EVENT = "chaosfaction:dashboard-refresh"
+const DASHBOARD_REFRESH_EVENT = "netguard:dashboard-refresh"
 
 function emitDashboardRefresh() {
   if (typeof window !== "undefined") {
@@ -588,7 +588,7 @@ export function ThreatResponsePanel() {
       </CardHeader>
       <CardContent className="space-y-2">
         <p className="text-xs text-slate-500">
-          Blocking here affects phone browsing only when the phone is using the Mac proxy. It does not
+          Blocking here affects phone browsing only when the phone is using the Windows proxy. It does not
           change your system firewall.
         </p>
         <p className="text-xs text-slate-500">

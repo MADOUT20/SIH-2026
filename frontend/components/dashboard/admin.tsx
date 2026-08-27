@@ -21,7 +21,7 @@ import {
   updateAdminSettings,
 } from "@/lib/api"
 
-const DASHBOARD_REFRESH_EVENT = "chaosfaction:dashboard-refresh"
+const DASHBOARD_REFRESH_EVENT = "netguard:dashboard-refresh"
 
 export function SettingsPanel() {
   const [settings, setSettings] = useState<any>({})

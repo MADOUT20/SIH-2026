@@ -81,14 +81,14 @@ $EscapedFrontendNext = Escape-SingleQuotes $FrontendNext
 $EscapedProxyHost = Escape-SingleQuotes $ProxyHost
 $EscapedProxyPort = Escape-SingleQuotes $ProxyPort
 
-$BackendCommand = "& { Set-Location '$EscapedBackendDir'; `$env:ALLOWED_ORIGINS='$EscapedAllowedOrigins'; `$env:PROXY_ENABLED='1'; `$env:PROXY_HOST='$EscapedProxyHost'; `$env:PROXY_PORT='$EscapedProxyPort'; if (Get-Command Get-NetFirewallRule -ErrorAction SilentlyContinue) { if (-not (Get-NetFirewallRule -DisplayName 'ChaosFaction Proxy 8888' -ErrorAction SilentlyContinue)) { New-NetFirewallRule -DisplayName 'ChaosFaction Proxy 8888' -Direction Inbound -Profile Any -Protocol TCP -LocalPort $EscapedProxyPort -Action Allow | Out-Null } else { Set-NetFirewallRule -DisplayName 'ChaosFaction Proxy 8888' -Profile Any -Enabled True -Action Allow | Out-Null } ; if (-not (Get-NetFirewallRule -DisplayName 'ChaosFaction Backend 8000' -ErrorAction SilentlyContinue)) { New-NetFirewallRule -DisplayName 'ChaosFaction Backend 8000' -Direction Inbound -Profile Any -Protocol TCP -LocalPort 8000 -Action Allow | Out-Null } else { Set-NetFirewallRule -DisplayName 'ChaosFaction Backend 8000' -Profile Any -Enabled True -Action Allow | Out-Null } } ; & '$EscapedBackendPython' -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload }"
+$BackendCommand = "& { Set-Location '$EscapedBackendDir'; `$env:ALLOWED_ORIGINS='$EscapedAllowedOrigins'; `$env:PROXY_ENABLED='1'; `$env:PROXY_HOST='$EscapedProxyHost'; `$env:PROXY_PORT='$EscapedProxyPort'; if (Get-Command Get-NetFirewallRule -ErrorAction SilentlyContinue) { if (-not (Get-NetFirewallRule -DisplayName 'NetGuard Proxy 8888' -ErrorAction SilentlyContinue)) { New-NetFirewallRule -DisplayName 'NetGuard Proxy 8888' -Direction Inbound -Profile Any -Protocol TCP -LocalPort $EscapedProxyPort -Action Allow | Out-Null } else { Set-NetFirewallRule -DisplayName 'NetGuard Proxy 8888' -Profile Any -Enabled True -Action Allow | Out-Null } ; if (-not (Get-NetFirewallRule -DisplayName 'NetGuard Backend 8000' -ErrorAction SilentlyContinue)) { New-NetFirewallRule -DisplayName 'NetGuard Backend 8000' -Direction Inbound -Profile Any -Protocol TCP -LocalPort 8000 -Action Allow | Out-Null } else { Set-NetFirewallRule -DisplayName 'NetGuard Backend 8000' -Profile Any -Enabled True -Action Allow | Out-Null } } ; & '$EscapedBackendPython' -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload }"
 $FrontendCommandBlock = "& { Set-Location '$EscapedFrontendDir'; `$env:BACKEND_API_URL='$EscapedBackendApiUrl'; `$env:NEXT_PUBLIC_API_URL='$EscapedBackendApiUrl'; & '$EscapedFrontendNext' dev --turbo --hostname 0.0.0.0 --port 3000 }"
 
 Start-Process -FilePath $ShellExe -Verb RunAs -ArgumentList @("-NoExit", "-Command", $BackendCommand) -WorkingDirectory $BackendDir | Out-Null
 Start-Process -FilePath $ShellExe -ArgumentList @("-NoExit", "-Command", $FrontendCommandBlock) -WorkingDirectory $FrontendDir | Out-Null
 
 Write-Host ""
-Write-Host "ChaosFaction capture mode is starting in separate PowerShell windows."
+Write-Host "NetGuard capture mode is starting in separate PowerShell windows."
 Write-Host "Frontend: http://localhost:3000"
 Write-Host "Backend:  http://localhost:8000"
 if ($LanIp) {

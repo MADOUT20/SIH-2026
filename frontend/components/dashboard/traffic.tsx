@@ -186,7 +186,7 @@ export function TrafficChartPanel() {
 
       if (message.includes("/dev/bpf") || message.includes("Scapy as root") || message.includes("admin permissions")) {
         setError(
-          "Packet capture needs macOS admin access. Restart using ./scripts/dev-local-capture.sh, or run only the backend with sudo.",
+          "Packet capture needs elevated access. On Windows, use .\\scripts\\dev-local-capture.ps1 after installing Npcap.",
         )
       } else if (message.includes("Npcap") || message.includes("Administrator PowerShell") || message.includes("WinPcap")) {
         setError(

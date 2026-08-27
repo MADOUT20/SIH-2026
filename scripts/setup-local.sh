@@ -77,8 +77,8 @@ echo
 echo "Local setup is complete."
 echo "Next time, start everything with:"
 echo "  ./scripts/dev-local.sh"
-echo "If you want packet capture on macOS, use:"
-echo "  ./scripts/dev-local-capture.sh"
+echo "If you want packet capture on Windows, use:"
+echo "  .\\scripts\\dev-local-capture.ps1"
 echo
 echo "Optional backend dev tools can be installed with:"
 echo "  ./backend/.venv/bin/python -m pip install -r backend/requirements-dev.txt"

@@ -13,7 +13,7 @@ from app.api.routes import (
 # This file is the FastAPI bootstrap: app creation, middleware, router wiring,
 # and startup/shutdown hooks all live here.
 app = FastAPI(
-    title="ChaosFaction API",
+    title="NetGuard API",
     description="Network Security Monitoring API",
     version="1.0.0"
 )
@@ -59,7 +59,7 @@ async def shutdown_event():
 @app.get("/")
 async def root():
     return {
-        "message": "ChaosFaction API",
+        "message": "NetGuard API",
         "docs": "/docs",
         "version": "1.0.0"
     }

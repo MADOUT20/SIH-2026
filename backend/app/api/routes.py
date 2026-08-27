@@ -1,6 +1,6 @@
 """
-Consolidated API Routes for ChaosFaction
-Integrated with real services for packet capture, threat detection, and traffic analysis
+Consolidated API routes for the NetGuard backend.
+Integrated with real services for packet capture, threat detection, and traffic analysis.
 """
 
 from fastapi import APIRouter, HTTPException, Query
@@ -55,8 +55,8 @@ class UserCreateRequest(BaseModel):
 
 # In-memory user store for the dashboard admin panel
 users_store: List[Dict[str, str]] = [
-    {"id": "user_1", "email": "admin@chaosfaction.com", "role": "admin"},
-    {"id": "user_2", "email": "viewer@chaosfaction.com", "role": "viewer"},
+    {"id": "user_1", "email": "admin@netguard.local", "role": "admin"},
+    {"id": "user_2", "email": "viewer@netguard.local", "role": "viewer"},
 ]
 
 # ===== TRAFFIC ROUTES =====

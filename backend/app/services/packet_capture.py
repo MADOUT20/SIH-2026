@@ -110,8 +110,8 @@ class PacketCaptureService:
             if "/dev/bpf" in message or "Scapy as root" in message:
                 return {
                     "error": (
-                        "Packet capture requires admin permissions on macOS. "
-                        "Start the app with ./scripts/dev-local-capture.sh or run the backend with sudo. "
+                        "Packet capture requires elevated permissions on this host. "
+                        "On Windows, start the app with .\\scripts\\dev-local-capture.ps1 after installing Npcap. "
                         f"Original error: {message}"
                     )
                 }
