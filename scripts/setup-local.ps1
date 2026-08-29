@@ -72,7 +72,8 @@ try {
   if (Get-Command pnpm -ErrorAction SilentlyContinue) {
     & pnpm install --frozen-lockfile
   } else {
-    & npm install
+    # react-day-picker v8 has an outdated React peer range; the app uses React 19.
+    & npm.cmd install --legacy-peer-deps
   }
 } finally {
   Pop-Location

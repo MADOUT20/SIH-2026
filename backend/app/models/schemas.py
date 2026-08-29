@@ -50,12 +50,22 @@ class User(BaseModel):
     status: str
     last_login: datetime
 
-class SystemSettings(BaseModel):
-    system_name: str
-    version: str
-    notification_email: str
-    log_retention_days: int
-    auto_backup_enabled: bool
-    backup_interval_hours: int
-    max_concurrent_users: int
-    threat_threshold: float
+class Flow(BaseModel):
+    flow_id: str
+    timestamp: datetime
+    source_ip: str
+    source_port: int
+    dest_ip: str
+    dest_port: int
+    protocol: str
+    start_time: datetime
+    end_time: datetime
+    total_packets: int
+    total_bytes: int
+    packets_forward: int
+    bytes_forward: int
+    packets_backward: int
+    bytes_backward: int
+    duration: float
+    avg_packet_size: float
+    status: str = "active"

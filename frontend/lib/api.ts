@@ -42,6 +42,7 @@ export interface StartCaptureResponse {
   interface: string
   packets_captured: number
   count: number
+  message?: string
   timeout: number
   timestamp: string
 }

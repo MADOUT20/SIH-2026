@@ -136,6 +136,10 @@ export default function HomePage() {
     try {
       const result = await startPacketCapture(0, 5)
       setLastCapture(result)
+      if (result.status === "unavailable") {
+        setError(result.message || "Packet capture is unavailable on this machine.")
+        return
+      }
       await refreshData()
     } catch (err) {
       console.error("Packet capture failed:", err)

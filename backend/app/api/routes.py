@@ -388,7 +388,19 @@ async def start_capture(
         )
         
         if isinstance(packets, dict) and "error" in packets:
-            raise HTTPException(status_code=500, detail=packets["error"])
+            # Missing capture permissions or Npcap are expected local setup
+            # conditions, not API failures. Let the UI render actionable setup
+            # guidance without triggering a development error overlay.
+            return {
+                "capture_id": f"cap_{datetime.now().timestamp()}",
+                "status": "unavailable",
+                "interface": capture_interface or "default",
+                "packets_captured": 0,
+                "count": count,
+                "timeout": timeout,
+                "message": packets["error"],
+                "timestamp": datetime.now().isoformat(),
+            }
         
         return {
             "capture_id": f"cap_{datetime.now().timestamp()}",

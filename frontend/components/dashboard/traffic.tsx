@@ -173,6 +173,10 @@ export function TrafficChartPanel() {
     try {
       const result = await startPacketCapture(0, 10)
       setLastCapture(result)
+      if (result.status === "unavailable") {
+        setError(result.message || "Packet capture is unavailable on this machine.")
+        return
+      }
       await fetchStats()
       if (result.packets_captured === 0) {
         setError(
