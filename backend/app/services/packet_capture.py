@@ -24,6 +24,8 @@ class PacketCaptureService:
             "protocols": defaultdict(int),
             "ports": defaultdict(int),
         }
+        self.port_scan_tracker = defaultdict(set)
+        self.scan_threshold = 3
 
     def get_available_interfaces(self) -> Dict[str, Any]:
         """Return capture interfaces that Scapy can see on this host."""
@@ -69,43 +71,51 @@ class PacketCaptureService:
             "protocols": defaultdict(int),
             "ports": defaultdict(int),
         }
+        self.port_scan_tracker.clear()
     
-    async def capture_packets(self, interface: str = None, count: int = 0, timeout: int = 10):
+    async def capture_packets(self, interface: str = None, count: int = 0, timeout: int = 10, bpf_filter: str = None):
         """
         Capture packets from network interface using Scapy.
-        
+
         Args:
             interface: Network interface name (e.g., 'eth0', 'en0'). If None, uses default.
             count: Number of packets to capture
             timeout: Timeout in seconds
-            
+            bpf_filter: BPF filter string (e.g., 'tcp', 'port 80', 'ip')
+
         Returns:
             List of captured packets
         """
+        import asyncio
         try:
             self.reset_capture_data()
 
             # Callback function to process each packet
             def packet_callback(packet):
                 self._process_packet(packet)
-            
+
             # Start packet capture
             sniff_kwargs = {
                 "iface": interface,
                 "prn": packet_callback,
                 "timeout": timeout,
-                "store": True,
+                "store": False,  # Optimization: don't store raw packets in Scapy's internal list
             }
             if count and count > 0:
                 sniff_kwargs["count"] = count
+            if bpf_filter:
+                sniff_kwargs["filter"] = bpf_filter
 
-            packets = sniff(**sniff_kwargs)
-            
-            return self._format_packets(packets)
-        
+            # Run the blocking sniff call in a separate thread to avoid blocking the event loop
+            await asyncio.to_thread(sniff, **sniff_kwargs)
+
+            # Return the packets we already processed and stored in self.packets
+            return list(self.packets)
+
         except Exception as e:
             message = str(e)
             lower_message = message.lower()
+
 
             if "/dev/bpf" in message or "Scapy as root" in message:
                 return {
@@ -135,6 +145,17 @@ class PacketCaptureService:
     def _process_packet(self, packet):
         """Process and store packet information"""
         packet_info = self._extract_packet_info(packet)
+
+        # Track sequential port probes (nmap style scans)
+        if packet_info.get("source_ip") and packet_info.get("dest_port"):
+            src_ip = packet_info["source_ip"]
+            dest_port = packet_info["dest_port"]
+            self.port_scan_tracker[src_ip].add(dest_port)
+
+            if len(self.port_scan_tracker[src_ip]) >= self.scan_threshold:
+                if "SEQUENTIAL_PORT_PROBE" not in packet_info["security_alerts"]:
+                    packet_info["security_alerts"].append("SEQUENTIAL_PORT_PROBE")
+
         self._store_packet(packet_info, len(packet))
 
     def record_proxy_observation(
@@ -202,43 +223,41 @@ class PacketCaptureService:
             "dns_query": None,
             "dns_query_type": None,
             "observed_host": None,
+            "security_alerts": [],
         }
-        
+
         # IPv4 layer
-        if IP in packet:
+        if packet.haslayer(IP):
             ip_layer = packet[IP]
             packet_info["source_ip"] = ip_layer.src
             packet_info["dest_ip"] = ip_layer.dst
             packet_info["protocol"] = self._get_protocol_name(ip_layer.proto)
-
         # IPv6 layer
-        elif IPv6 in packet:
+        elif packet.haslayer(IPv6):
             ip_layer = packet[IPv6]
             packet_info["source_ip"] = ip_layer.src
             packet_info["dest_ip"] = ip_layer.dst
             packet_info["protocol"] = "IPv6"
-        
+
         # TCP layer
-        if TCP in packet:
+        if packet.haslayer(TCP):
             tcp_layer = packet[TCP]
             packet_info["source_port"] = tcp_layer.sport
             packet_info["dest_port"] = tcp_layer.dport
             packet_info["flags"] = self._parse_tcp_flags(tcp_layer.flags)
             packet_info["protocol"] = "TCP"
-        
         # UDP layer
-        elif UDP in packet:
+        elif packet.haslayer(UDP):
             udp_layer = packet[UDP]
             packet_info["source_port"] = udp_layer.sport
             packet_info["dest_port"] = udp_layer.dport
             packet_info["protocol"] = "UDP"
-        
         # ICMP layer
-        elif ICMP in packet:
+        elif packet.haslayer(ICMP):
             packet_info["protocol"] = "ICMP"
             packet_info["flags"] = [f"Type: {packet[ICMP].type}"]
 
-        if DNS in packet:
+        if packet.haslayer(DNS):
             packet_info["application_protocol"] = "DNS"
             dns_query, dns_query_type = self._extract_dns_query(packet)
             packet_info["dns_query"] = dns_query
@@ -247,7 +266,7 @@ class PacketCaptureService:
         observed_host = self._extract_observed_host(packet)
         if observed_host:
             packet_info["observed_host"] = observed_host
-            if TCP in packet and packet_info.get("dest_port") in {80, 8080}:
+            if packet.haslayer(TCP) and packet_info.get("dest_port") in {80, 8080}:
                 packet_info["application_protocol"] = "HTTP"
             elif packet_info.get("application_protocol") is None:
                 packet_info["application_protocol"] = "TLS"
