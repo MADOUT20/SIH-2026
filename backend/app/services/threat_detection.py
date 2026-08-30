@@ -1978,9 +1978,7 @@ class ThreatDetectionService:
             mitre_map = scan_result.get("mitre_mapping", {})
             
             # Create threat entry so it lights up the MITRE Kill-Chain and Threat Watch
-            threat_id = f"threat_scan_{int(datetime.now().timestamp())}"
             new_threat = self._build_threat(
-                threat_id=threat_id,
                 threat_type=threat_type,
                 source_ip="192.168.1.105",
                 severity=scan_result.get("severity", "CRITICAL"),
@@ -2022,7 +2020,6 @@ class ThreatDetectionService:
 
         if scenario_type == "trojan":
             t = self._build_threat(
-                threat_id=f"threat_sim_trojan_{int(now.timestamp())}",
                 threat_type="TROJAN_DOWNLOAD",
                 source_ip="192.168.1.105",
                 severity="CRITICAL",
@@ -2114,9 +2111,8 @@ class ThreatDetectionService:
                 },
             ]
 
-            for idx, item in enumerate(scenarios):
+            for item in scenarios:
                 t = self._build_threat(
-                    threat_id=f"threat_sim_{idx}_{int(now.timestamp())}",
                     threat_type=item["type"],
                     source_ip=item["source_ip"],
                     severity=item["severity"],
