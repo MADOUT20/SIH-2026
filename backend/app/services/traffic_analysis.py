@@ -242,31 +242,31 @@ class TrafficAnalysisService:
                 "unique_connections": 0,
                 "most_active": []
             }
-        
+
         connections = defaultdict(lambda: {"packets": 0, "bytes": 0})
         sources = set()
         destinations = set()
-        
+
         for packet in packets:
             src_ip = packet.get("source_ip")
             dst_ip = packet.get("dest_ip")
             size = packet.get("size_bytes", 0)
-            
+
             if src_ip and dst_ip:
                 sources.add(src_ip)
                 destinations.add(dst_ip)
-                
+
                 connection_key = f"{src_ip} -> {dst_ip}"
                 connections[connection_key]["packets"] += 1
                 connections[connection_key]["bytes"] += size
-        
+
         # Get top connections
         top_connections = sorted(
             connections.items(),
             key=lambda x: x[1]["packets"],
             reverse=True
         )[:10]
-        
+
         most_active = [
             {
                 "connection": conn[0],
@@ -275,7 +275,7 @@ class TrafficAnalysisService:
             }
             for conn in top_connections
         ]
-        
+
         return {
             "unique_sources": len(sources),
             "unique_destinations": len(destinations),
@@ -283,6 +283,71 @@ class TrafficAnalysisService:
             "most_active": most_active,
             "timestamp": datetime.now().isoformat()
         }
+
+    async def analyze_flows(self, packets: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Extract flow-level features: duration, total bytes, packet count, protocol.
+        A flow is defined by the 5-tuple: (source_ip, dest_ip, source_port, dest_port, protocol).
+        """
+        if not packets:
+            return []
+
+        # flow_key -> {min_ts, max_ts, total_bytes, count}
+        flow_stats = defaultdict(lambda: {
+            "min_ts": None,
+            "max_ts": None,
+            "total_bytes": 0,
+            "count": 0
+        })
+
+        for packet in packets:
+            # Define the 5-tuple flow key
+            flow_key = (
+                packet.get("source_ip"),
+                packet.get("dest_ip"),
+                packet.get("source_port"),
+                packet.get("dest_port"),
+                packet.get("protocol")
+            )
+
+            # Parse timestamp
+            ts_str = packet.get("timestamp")
+            try:
+                ts = datetime.fromisoformat(ts_str) if ts_str else datetime.now()
+            except (ValueError, TypeError):
+                ts = datetime.now()
+
+            stats = flow_stats[flow_key]
+
+            # Update timestamps for duration
+            if stats["min_ts"] is None or ts < stats["min_ts"]:
+                stats["min_ts"] = ts
+            if stats["max_ts"] is None or ts > stats["max_ts"]:
+                stats["max_ts"] = ts
+
+            # Update bytes and count
+            stats["total_bytes"] += packet.get("size_bytes", 0)
+            stats["count"] += 1
+
+        # Transform aggregated stats into final list
+        flows = []
+        for key, stats in flow_stats.items():
+            duration = 0.0
+            if stats["min_ts"] and stats["max_ts"]:
+                duration = (stats["max_ts"] - stats["min_ts"]).total_seconds()
+
+            flows.append({
+                "source_ip": key[0],
+                "dest_ip": key[1],
+                "source_port": key[2],
+                "dest_port": key[3],
+                "protocol": key[4],
+                "duration": round(duration, 4),
+                "total_bytes": stats["total_bytes"],
+                "packet_count": stats["count"]
+            })
+
+        return flows
     
     def store_traffic_sample(self, sample: Dict[str, Any]) -> None:
         """Store traffic sample for historical analysis"""
