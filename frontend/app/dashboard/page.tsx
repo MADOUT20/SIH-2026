@@ -1,0 +1,154 @@
+"use client"
+// Dashboard page that composes the main monitoring panels and layout.
+
+import { useState, useEffect } from "react"
+import { healthCheck, type HealthCheckResponse } from "../../lib/api"
+import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
+import { DashboardHeader } from "@/components/dashboard/dashboard-header"
+import { StatCards } from "@/components/dashboard/stat-cards"
+import { TrafficChartPanel, PacketInspectionPanel, TrafficAnalysisPanel } from "@/components/dashboard/traffic"
+import { BlockedSitesCard, ObservedDevicesCard, ThreatDetectionPanel, ThreatResponsePanel, OSProtection } from "@/components/dashboard/threats"
+import { SettingsPanel, AdminPanel, ActionLogs } from "@/components/dashboard/admin"
+import { AlertNotifications, NotificationArchive } from "@/components/dashboard/alerts"
+import { MitreAttackMatrix } from "@/components/dashboard/mitre-matrix"
+import { WebsiteThreatScanner } from "@/components/dashboard/website-scanner"
+import { MLBenchmarkPanel } from "@/components/dashboard/ml-benchmark"
+
+export default function DashboardPage() {
+  const [activeTab, setActiveTab] = useState("overview")
+  const [healthData, setHealthData] = useState<HealthCheckResponse | null>(null)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
+  useEffect(() => {
+    const fetchHealthData = async () => {
+      try {
+        const data = await healthCheck()
+        setHealthData(data)
+      } catch (error) {
+        console.error("Failed to fetch health status:", error)
+      }
+    }
+
+    fetchHealthData()
+  }, [])
+
+  return (
+    <div className="flex min-h-screen overflow-hidden bg-background">
+      <DashboardSidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        mobileOpen={mobileNavOpen}
+        onMobileOpenChange={setMobileNavOpen}
+      />
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <DashboardHeader
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onMenuClick={() => setMobileNavOpen(true)}
+        />
+        <main className="flex-1 space-y-6 overflow-y-auto p-4 sm:p-6">
+          {activeTab === "overview" && (
+            <>
+              <StatCards healthData={healthData} />
+              
+              {/* MITRE Stage Matrix in Overview */}
+              <MitreAttackMatrix />
+
+              {/* ML Model Benchmark Comparison */}
+              <MLBenchmarkPanel />
+
+              <div className="grid gap-4 xl:grid-cols-3">
+                <div className="space-y-4 xl:col-span-2">
+                  <WebsiteThreatScanner />
+                  <TrafficChartPanel />
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <ThreatResponsePanel />
+                    <AlertNotifications />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <ObservedDevicesCard />
+                  <ThreatDetectionPanel excludeLow />
+                </div>
+              </div>
+              <BlockedSitesCard />
+            </>
+          )}
+
+          {activeTab === "ml" && (
+            <MLBenchmarkPanel />
+          )}
+
+          {activeTab === "mitre" && (
+            <>
+              <MitreAttackMatrix />
+              <WebsiteThreatScanner />
+            </>
+          )}
+
+          {activeTab === "scanner" && (
+            <>
+              <WebsiteThreatScanner />
+              <div className="grid gap-4 lg:grid-cols-2">
+                <ThreatDetectionPanel />
+                <BlockedSitesCard />
+              </div>
+            </>
+          )}
+
+          {activeTab === "packets" && (
+            <>
+              <TrafficChartPanel />
+              <PacketInspectionPanel />
+            </>
+          )}
+
+          {activeTab === "inspection" && (
+            <PacketInspectionPanel />
+          )}
+
+          {activeTab === "threats" && (
+            <>
+              <WebsiteThreatScanner />
+              <div className="grid gap-4 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                  <PacketInspectionPanel />
+                </div>
+                <ThreatDetectionPanel />
+              </div>
+              <MitreAttackMatrix />
+              <div className="grid gap-4 lg:grid-cols-2">
+                <ThreatResponsePanel />
+                <AlertNotifications />
+              </div>
+              <BlockedSitesCard />
+              <OSProtection />
+            </>
+          )}
+
+          {activeTab === "traffic" && (
+            <>
+              <TrafficChartPanel />
+              <TrafficAnalysisPanel />
+            </>
+          )}
+
+          {activeTab === "actions" && (
+            <ActionLogs />
+          )}
+
+          {activeTab === "archive" && (
+            <NotificationArchive />
+          )}
+
+          {activeTab === "settings" && (
+            <>
+              <SettingsPanel />
+              <AdminPanel />
+            </>
+          )}
+        </main>
+      </div>
+    </div>
+  )
+}
