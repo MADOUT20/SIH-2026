@@ -12,18 +12,14 @@ from app.services.packet_capture import PacketCaptureService
 from app.services.mobile_proxy import MobileProxyService
 from app.services.threat_detection import ThreatDetectionService
 from app.services.traffic_analysis import TrafficAnalysisService
-from app.services.mitre_mapping import MitreMappingService
-from app.services.ml_benchmark import MLBenchmarkService
 
 # ===== Initialize Services =====
 # These service instances hold the backend state that the route handlers expose
-# to the frontend: packets, threats, proxy status, traffic summaries, MITRE mapping, and ML benchmark.
+# to the frontend: packets, threats, proxy status, and traffic summaries.
 packet_service = PacketCaptureService()
 threat_service = ThreatDetectionService()
 proxy_service = MobileProxyService(packet_service, threat_service)
 traffic_service = TrafficAnalysisService()
-mitre_service = MitreMappingService()
-ml_service = MLBenchmarkService()
 
 # ===== Request/Response Models =====
 # These Pydantic models are local API-side shapes used for request/response typing
@@ -56,9 +52,6 @@ class UserCreateRequest(BaseModel):
     email: str
     password: Optional[str] = None
     role: str
-
-class UrlScanRequest(BaseModel):
-    url: str
 
 # In-memory user store for the dashboard admin panel
 users_store: List[Dict[str, str]] = [
@@ -195,10 +188,6 @@ async def get_threats(
         if severity:
             filtered_threats = [t for t in filtered_threats if t.get("severity") == severity]
         
-        # Enrich with MITRE ATT&CK mapping
-        for t in filtered_threats:
-            t["mitre_mapping"] = mitre_service.map_threat(t.get("type", ""), t)
-
         return {
             "status": "success",
             "threat_count": len(filtered_threats),
@@ -215,13 +204,6 @@ async def hunt_threats(limit: int = Query(5, ge=1, le=10, description="Maximum n
         packets = packet_service.packets
         stats = await packet_service.get_packet_statistics()
         hunt_results = await threat_service.hunt_live_threats(packets, stats, limit=limit)
-
-        if "best_finding" in hunt_results and hunt_results["best_finding"]:
-            hunt_results["best_finding"]["mitre_mapping"] = mitre_service.map_threat(
-                hunt_results["best_finding"].get("type", ""), hunt_results["best_finding"]
-            )
-        for f in hunt_results.get("findings", []):
-            f["mitre_mapping"] = mitre_service.map_threat(f.get("type", ""), f)
 
         return {
             "status": "success",
@@ -290,14 +272,6 @@ async def analyze_for_threats():
             "threats": threats,
             "timestamp": datetime.now().isoformat()
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@threats_router.post("/scan-url")
-async def scan_url_threat_endpoint(request: UrlScanRequest):
-    """Analyze any website/URL for Malware, Trojan, Phishing, Ransomware, and return MITRE ATT&CK stage mapping"""
-    try:
-        return await threat_service.scan_url(request.url)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -414,7 +388,19 @@ async def start_capture(
         )
         
         if isinstance(packets, dict) and "error" in packets:
-            raise HTTPException(status_code=500, detail=packets["error"])
+            # Missing capture permissions or Npcap are expected local setup
+            # conditions, not API failures. Let the UI render actionable setup
+            # guidance without triggering a development error overlay.
+            return {
+                "capture_id": f"cap_{datetime.now().timestamp()}",
+                "status": "unavailable",
+                "interface": capture_interface or "default",
+                "packets_captured": 0,
+                "count": count,
+                "timeout": timeout,
+                "message": packets["error"],
+                "timestamp": datetime.now().isoformat(),
+            }
         
         return {
             "capture_id": f"cap_{datetime.now().timestamp()}",
@@ -696,97 +682,3 @@ async def mark_notification_read(notif_id: str):
 async def delete_notification(notif_id: str):
     """Delete notification"""
     return {"success": True, "notification_id": notif_id}
-
-
-# ===== MITRE ATT&CK ROUTES =====
-mitre_router = APIRouter(prefix="/api/mitre", tags=["MITRE ATT&CK Mapping"])
-
-@mitre_router.get("/taxonomy")
-async def get_mitre_taxonomy():
-    """Get the full MITRE ATT&CK taxonomy and tactics matrix"""
-    return mitre_service.get_taxonomy()
-
-@mitre_router.get("/attack-chain")
-async def get_mitre_attack_chain():
-    """Get active attack kill-chain progression for current threats"""
-    packets = packet_service.packets
-    stats = await packet_service.get_packet_statistics()
-    threats = await threat_service.detect_threats(packets, stats)
-    return mitre_service.build_attack_chain_summary(threats)
-
-@mitre_router.post("/map-threat")
-async def map_threat_endpoint(threat_type: str = Query(..., description="Threat type identifier")):
-    """Map any threat type to MITRE tactic and technique"""
-    return mitre_service.map_threat(threat_type)
-
-@mitre_router.post("/scan-url")
-async def mitre_scan_url_endpoint(request: UrlScanRequest):
-    """Scan URL and return MITRE ATT&CK Stage classification, danger level, and safety warning"""
-    try:
-        return await threat_service.scan_url(request.url)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@mitre_router.get("/stages")
-async def get_mitre_stages():
-    """Get all 14 MITRE ATT&CK kill-chain stages with active threat counts and progression"""
-    packets = packet_service.packets
-    stats = await packet_service.get_packet_statistics()
-    threats = await threat_service.detect_threats(packets, stats)
-    return mitre_service.build_attack_chain_summary(threats)
-
-@mitre_router.post("/simulate-scenario")
-async def simulate_attack_scenario_endpoint(scenario_type: str = Query("multi_stage", description="Scenario: multi_stage or trojan")):
-    """Inject simulated realistic multi-stage threats to light up the MITRE Matrix"""
-    simulated = threat_service.simulate_attack_scenario(scenario_type)
-    packets = packet_service.packets
-    stats = await packet_service.get_packet_statistics()
-    threats = await threat_service.detect_threats(packets, stats)
-    summary = mitre_service.build_attack_chain_summary(threats)
-    return {
-        "success": True,
-        "scenario_type": scenario_type,
-        "injected_count": len(simulated),
-        "attack_chain": summary
-    }
-
-@mitre_router.post("/clear-simulation")
-async def clear_simulation_endpoint():
-    """Clear all simulated threats"""
-    cleared = threat_service.clear_simulated_threats()
-    packets = packet_service.packets
-    stats = await packet_service.get_packet_statistics()
-    threats = await threat_service.detect_threats(packets, stats)
-    summary = mitre_service.build_attack_chain_summary(threats)
-    return {
-        "success": True,
-        "cleared_count": cleared,
-        "attack_chain": summary
-    }
-
-
-# ===== ML BENCHMARK & LOGISTIC REGRESSION BASELINE ROUTES =====
-ml_router = APIRouter(prefix="/api/ml", tags=["ML Baseline & Benchmark"])
-
-@ml_router.get("/benchmark")
-async def get_ml_benchmark():
-    """Get fair benchmark metrics: F1, Precision, Recall, False Positive Rate (FPR), ROC-AUC, Latency, Confusion Matrix"""
-    return ml_service.get_benchmark()
-
-@ml_router.post("/train-baseline")
-async def train_baseline_model():
-    """Retrain Logistic Regression baseline and AI model incorporating live captured packets"""
-    packets = packet_service.packets
-    result = ml_service.train_on_live_data(packets)
-    return result
-
-@ml_router.post("/predict-packet")
-async def predict_packet_endpoint(packet_data: Optional[Dict[str, Any]] = None):
-    """Run real-time inference on a packet using both Logistic Regression and AI Ensemble"""
-    if not packet_data:
-        if packet_service.packets:
-            packet_data = packet_service.packets[-1]
-        else:
-            packet_data = {"size_bytes": 1024, "dest_port": 443, "protocol": "TCP", "flags": ["ACK"]}
-    
-    return ml_service.predict_packet(packet_data)

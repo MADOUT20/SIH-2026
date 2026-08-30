@@ -14,7 +14,6 @@ import math
 import statistics
 from urllib.parse import urlsplit
 from dotenv import load_dotenv
-from app.services.mitre_mapping import MitreMappingService, SUSPICIOUS_DOMAIN_KEYWORDS
 
 
 class ThreatDetectionService:
@@ -1437,13 +1436,6 @@ class ThreatDetectionService:
     ) -> Dict[str, Any]:
         # Independent helper: every detector funnels through this so the threat
         # shape stays consistent no matter which rule created it.
-        mitre_mapping = MitreMappingService.map_threat(threat_type, {
-            "source_ip": source_ip,
-            "severity": severity or self._calculate_severity(threat_score),
-            "destination_host": destination_host,
-        })
-        stage_label = mitre_mapping.get("stage_label", f"Stage {mitre_mapping.get('stage_number', 9)}: {mitre_mapping.get('stage_name', 'Discovery')}")
-
         threat = {
             "id": self._build_threat_id(
                 threat_type=threat_type,
@@ -1462,13 +1454,6 @@ class ThreatDetectionService:
             "status": status,
             "classification": classification,
             "evidence": evidence or [],
-            "mitre_mapping": mitre_mapping,
-            "attack_stage": stage_label,
-            "stage_name": mitre_mapping.get("stage_name", "Discovery"),
-            "stage_number": mitre_mapping.get("stage_number", 9),
-            "technique_id": mitre_mapping.get("technique_id", "T1046"),
-            "technique_name": mitre_mapping.get("technique_name", "Network Service Discovery"),
-            "category": mitre_mapping.get("category", "Network Threat"),
         }
         if destination_ip:
             threat["destination_ip"] = destination_ip
@@ -1966,175 +1951,6 @@ class ThreatDetectionService:
             )
         except ValueError:
             return False
-
-    async def scan_url(self, url: str) -> Dict[str, Any]:
-        """
-        Scan a URL/website, trigger notification, and register as active threat if malicious.
-        """
-        scan_result = MitreMappingService.scan_website_threat(url)
-        if scan_result.get("is_malicious"):
-            warning = scan_result.get("warning", {})
-            threat_type = scan_result.get("threat_type", "MALWARE_SITE_VISIT")
-            mitre_map = scan_result.get("mitre_mapping", {})
-            
-            # Create threat entry so it lights up the MITRE Kill-Chain and Threat Watch
-            new_threat = self._build_threat(
-                threat_type=threat_type,
-                source_ip="192.168.1.105",
-                severity=scan_result.get("severity", "CRITICAL"),
-                threat_score=scan_result.get("threat_score", 0.95),
-                description=f"{warning.get('title', 'MALICIOUS SITE')}: {warning.get('headline', '')}. Host: {scan_result.get('domain')}",
-                destination_host=scan_result.get("domain"),
-                destination_ip="185.220.101.5",
-                destination_port=443 if "https" in url else 80,
-                classification="confirmed",
-                evidence=scan_result.get("evidence", []) + [
-                    f"MITRE ATT&CK {mitre_map.get('stage_label', '')}",
-                    f"Technique {mitre_map.get('technique_id', '')} - {mitre_map.get('technique_name', '')}"
-                ]
-            )
-            self.manual_threats.insert(0, new_threat)
-            self.manual_threats = self.manual_threats[:self.max_manual_threats]
-
-            # Emit notification
-            self.notifications.insert(0, {
-                "id": f"notif_scan_{int(datetime.now().timestamp())}",
-                "type": threat_type,
-                "title": warning.get("title", "⚠️ MALICIOUS WEBSITE DETECTED"),
-                "message": f"Visited site '{scan_result.get('domain')}' triggered {scan_result.get('threat_category')}. MITRE: {mitre_map.get('stage_label', '')}",
-                "severity": scan_result.get("severity", "HIGH"),
-                "timestamp": datetime.now().isoformat(),
-                "read": False,
-            })
-            if len(self.notifications) > self.max_notifications:
-                self.notifications.pop()
-
-        return scan_result
-
-    def simulate_attack_scenario(self, scenario_type: str = "multi_stage") -> List[Dict[str, Any]]:
-        """
-        Inject realistic multi-stage cyber threats to light up the 14-stage MITRE kill-chain and dashboard.
-        """
-        now = datetime.now()
-        simulated: List[Dict[str, Any]] = []
-
-        if scenario_type == "trojan":
-            t = self._build_threat(
-                threat_type="TROJAN_DOWNLOAD",
-                source_ip="192.168.1.105",
-                severity="CRITICAL",
-                threat_score=0.98,
-                description="Trojan payload dropper 'updater_payload.exe' downloaded via HTTP.",
-                destination_host="malware-payload-host.com",
-                destination_ip="185.220.101.5",
-                destination_port=80,
-                classification="confirmed",
-                evidence=[
-                    "File signature matches Win32/TrojanDropper.Agent.gen",
-                    "Dangerous .exe executable delivered from unverified host",
-                    "MITRE Stage 4: Execution [T1204.002]"
-                ]
-            )
-            simulated.append(t)
-        else:
-            # Full 6-phase Attack Kill-Chain Progression (Reconnaissance to Impact)
-            scenarios = [
-                {
-                    "type": "SEQUENTIAL_PORT_PROBE",
-                    "source_ip": "192.168.1.45",
-                    "severity": "LOW",
-                    "threat_score": 0.65,
-                    "desc": "Host scanned 42 sequential TCP ports probing internal network services.",
-                    "host": "192.168.1.1",
-                    "port": 445,
-                    "evidence": ["42 ports scanned in 3.2 seconds", "SYN flag sweep pattern detected"]
-                },
-                {
-                    "type": "PHISHING",
-                    "source_ip": "192.168.1.105",
-                    "severity": "HIGH",
-                    "threat_score": 0.88,
-                    "desc": "User navigated to credential phishing domain impersonating corporate single sign-on.",
-                    "host": "secure-login-bank-verify.xyz",
-                    "port": 443,
-                    "evidence": ["High-risk .xyz domain with brand impersonation", "MITRE Stage 3: Initial Access [T1566.002]"]
-                },
-                {
-                    "type": "TROJAN",
-                    "source_ip": "192.168.1.105",
-                    "severity": "CRITICAL",
-                    "threat_score": 0.98,
-                    "desc": "Trojan horse dropper binary 'invoice_scan.exe' executed in background.",
-                    "host": "malware-download-trojan.com",
-                    "port": 80,
-                    "evidence": ["Trojan executable downloaded", "MITRE Stage 4: Execution [T1204.002]"]
-                },
-                {
-                    "type": "SPYWARE",
-                    "source_ip": "192.168.1.105",
-                    "severity": "HIGH",
-                    "threat_score": 0.89,
-                    "desc": "Infostealer hook detected capturing keystrokes and clipboard data.",
-                    "host": "infostealer-drop.net",
-                    "port": 8080,
-                    "evidence": ["Keylogger routine identified", "MITRE Stage 11: Collection [T1056.001]"]
-                },
-                {
-                    "type": "C2_COMMUNICATION",
-                    "source_ip": "192.168.1.105",
-                    "severity": "HIGH",
-                    "threat_score": 0.92,
-                    "desc": "Persistent periodic encrypted beaconing to external command & control infrastructure.",
-                    "host": "c2-stealth-botnet.cc",
-                    "port": 8443,
-                    "evidence": ["Periodic 30s beaconing interval", "MITRE Stage 12: Command and Control [T1071.001]"]
-                },
-                {
-                    "type": "DATA_EXFILTRATION",
-                    "source_ip": "192.168.1.105",
-                    "severity": "CRITICAL",
-                    "threat_score": 0.96,
-                    "desc": "High-volume outbound data transfer (24.8 MB) to unknown offshore IP.",
-                    "host": "dropzone-exfil-server.ru",
-                    "port": 443,
-                    "evidence": ["24.8 MB transmitted over non-standard channel", "MITRE Stage 13: Exfiltration [T1041]"]
-                },
-                {
-                    "type": "RANSOMWARE",
-                    "source_ip": "192.168.1.105",
-                    "severity": "CRITICAL",
-                    "threat_score": 0.99,
-                    "desc": "Ransomware encryption activity detected: mass rapid file extension renaming (.lockbit).",
-                    "host": "ransom-lockbit-c2.cc",
-                    "port": 9001,
-                    "evidence": ["Mass file encryption behavior detected", "MITRE Stage 14: Impact [T1486]"]
-                },
-            ]
-
-            for item in scenarios:
-                t = self._build_threat(
-                    threat_type=item["type"],
-                    source_ip=item["source_ip"],
-                    severity=item["severity"],
-                    threat_score=item["threat_score"],
-                    description=item["desc"],
-                    destination_host=item["host"],
-                    destination_ip="185.220.101.7",
-                    destination_port=item["port"],
-                    classification="confirmed",
-                    evidence=item["evidence"]
-                )
-                simulated.append(t)
-
-        for s in simulated:
-            self.manual_threats.insert(0, s)
-        self.manual_threats = self.manual_threats[:self.max_manual_threats]
-        return simulated
-
-    def clear_simulated_threats(self) -> int:
-        count = len(self.manual_threats)
-        self.manual_threats.clear()
-        return count
 
     @staticmethod
     def _is_blockable_source(source_ip: Optional[str]) -> bool:

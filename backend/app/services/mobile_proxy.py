@@ -11,7 +11,6 @@ from urllib.parse import urlsplit
 
 from app.services.packet_capture import PacketCaptureService
 from app.services.threat_detection import ThreatDetectionService
-from app.services.mitre_mapping import MitreMappingService
 
 
 class MobileProxyService:
@@ -518,95 +517,13 @@ class MobileProxyService:
 
     @staticmethod
     async def _send_blocked_response(writer: asyncio.StreamWriter, destination_host: str) -> None:
-        scan_info = MitreMappingService.scan_website_threat(destination_host)
-        mitre = scan_info.get("mitre_mapping", {})
-        stage_label = mitre.get("stage_label", "Stage 3: Initial Access")
-        technique_id = mitre.get("technique_id", "T1189")
-        technique_name = mitre.get("technique_name", "Drive-by Compromise")
-        threat_cat = scan_info.get("threat_category", "Malware / Trojan Threat")
-        severity = scan_info.get("severity", "CRITICAL")
-        
-        body = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚠️ Threat Warning - NetGuard Defense</title>
-    <style>
-        * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }}
-        body {{ background: #0b0f19; color: #f1f5f9; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }}
-        .card {{ background: #131b2e; border: 1px solid #ef4444; border-radius: 16px; max-width: 580px; width: 100%; padding: 32px; box-shadow: 0 20px 50px rgba(239, 68, 68, 0.25); }}
-        .header {{ display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }}
-        .shield-icon {{ width: 44px; height: 44px; background: rgba(239, 68, 68, 0.15); border: 2px solid #ef4444; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }}
-        .title {{ font-size: 20px; font-weight: 700; color: #f87171; }}
-        .subtitle {{ font-size: 13px; color: #94a3b8; margin-top: 2px; }}
-        .alert-box {{ background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; padding: 14px 16px; border-radius: 6px; margin-bottom: 20px; }}
-        .alert-box strong {{ color: #fca5a5; display: block; font-size: 14px; margin-bottom: 4px; }}
-        .alert-box p {{ font-size: 13px; color: #cbd5e1; line-height: 1.4; }}
-        .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }}
-        .stat {{ background: #1e293b; padding: 12px 14px; border-radius: 10px; border: 1px solid #334155; }}
-        .stat-label {{ font-size: 11px; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; }}
-        .stat-val {{ font-size: 14px; font-weight: 600; color: #e2e8f0; margin-top: 4px; word-break: break-all; }}
-        .badge-stage {{ display: inline-block; background: #7c3aed; color: #fff; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; margin-top: 4px; }}
-        .badge-sev {{ display: inline-block; background: #dc2626; color: #fff; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; margin-top: 4px; }}
-        .actions {{ display: flex; gap: 12px; margin-top: 24px; }}
-        .btn {{ flex: 1; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 600; text-align: center; text-decoration: none; cursor: pointer; border: none; }}
-        .btn-primary {{ background: #3b82f6; color: #fff; }}
-        .btn-outline {{ background: transparent; border: 1px solid #475569; color: #cbd5e1; }}
-        .footer {{ font-size: 11px; color: #64748b; text-align: center; margin-top: 20px; }}
-    </style>
-</head>
-<body>
-    <div class="card">
-        <div class="header">
-            <div class="shield-icon">🛡️</div>
-            <div>
-                <div class="title">NetGuard Security Interception</div>
-                <div class="subtitle">Malicious Website / Threat Vector Blocked</div>
-            </div>
-        </div>
-
-        <div class="alert-box">
-            <strong>⚠️ High-Risk Malicious Activity Prevented</strong>
-            <p>Access to <strong>{destination_host}</strong> has been isolated because it matches malicious threat patterns, trojan delivery signatures, or manual blocklist policies.</p>
-        </div>
-
-        <div class="grid">
-            <div class="stat">
-                <div class="stat-label">MITRE ATT&CK Stage</div>
-                <div class="badge-stage">{stage_label}</div>
-            </div>
-            <div class="stat">
-                <div class="stat-label">Severity & Risk</div>
-                <div class="badge-sev">{severity} RISK</div>
-            </div>
-            <div class="stat">
-                <div class="stat-label">MITRE Technique ID</div>
-                <div class="stat-val">{technique_id}</div>
-                <div style="font-size: 11px; color: #94a3b8;">{technique_name}</div>
-            </div>
-            <div class="stat">
-                <div class="stat-label">Threat Classification</div>
-                <div class="stat-val">{threat_cat}</div>
-            </div>
-        </div>
-
-        <div class="stat" style="margin-bottom: 20px;">
-            <div class="stat-label">Target Hostname</div>
-            <div class="stat-val" style="color: #f87171;">{destination_host}</div>
-        </div>
-
-        <div class="actions">
-            <button class="btn btn-primary" onclick="window.history.back()">⬅ Return to Safety</button>
-        </div>
-
-        <div class="footer">
-            Protected by NetGuard AI Network Security • Real-Time MITRE ATT&CK Engine
-        </div>
-    </div>
-</body>
-</html>"""
-
+        body = (
+            "<html><body style=\"font-family:Arial,sans-serif;padding:24px;line-height:1.5;\">"
+            "<h2>Website blocked by NetGuard</h2>"
+            f"<p>Access to <strong>{destination_host}</strong> was blocked from the Windows dashboard.</p>"
+            "<p>Open the dashboard on Windows and unblock the site to restore access.</p>"
+            "</body></html>"
+        )
         await MobileProxyService._send_error(
             writer,
             403,

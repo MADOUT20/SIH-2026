@@ -7,15 +7,14 @@ load_dotenv()
 
 from app.api.routes import (
     traffic_router, threats_router, packets_router,
-    admin_router, notifications_router, health_router, users_router,
-    mitre_router, ml_router, proxy_service
+    admin_router, notifications_router, health_router, users_router, proxy_service
 )
 
 # This file is the FastAPI bootstrap: app creation, middleware, router wiring,
 # and startup/shutdown hooks all live here.
 app = FastAPI(
     title="NetGuard API",
-    description="Network Security Monitoring & ML Benchmark API",
+    description="Network Security Monitoring API",
     version="1.0.0"
 )
 
@@ -38,8 +37,6 @@ app.include_router(packets_router)
 app.include_router(admin_router)
 app.include_router(notifications_router)
 app.include_router(users_router)
-app.include_router(mitre_router)
-app.include_router(ml_router)
 
 
 @app.on_event("startup")

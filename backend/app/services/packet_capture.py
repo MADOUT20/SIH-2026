@@ -10,6 +10,7 @@ from typing import Dict, List, Any, Optional
 from collections import defaultdict
 from datetime import datetime
 from queue import Queue
+from app.services.flow_manager import FlowManager
 
 class PacketCaptureService:
     def __init__(self, max_packets: int = 1000):
@@ -18,6 +19,7 @@ class PacketCaptureService:
         self.packet_queue = Queue()
         self.capture_thread = None
         self.is_capturing = False
+        self.flow_manager = FlowManager()
         self.packet_stats = {
             "total_packets": 0,
             "total_bytes": 0,
@@ -65,6 +67,7 @@ class PacketCaptureService:
     def reset_capture_data(self):
         """Clear stored packets and statistics so each capture reflects a fresh sample."""
         self.packets = []
+        self.flow_manager.reset()
         self.packet_stats = {
             "total_packets": 0,
             "total_bytes": 0,
@@ -145,6 +148,10 @@ class PacketCaptureService:
     def _process_packet(self, packet):
         """Process and store packet information"""
         packet_info = self._extract_packet_info(packet)
+
+        # Group packets into flows
+        self.flow_manager.update_flow(packet_info)
+        self.flow_manager.cleanup_expired_flows()
 
         # Track sequential port probes (nmap style scans)
         if packet_info.get("source_ip") and packet_info.get("dest_port"):
@@ -359,6 +366,14 @@ class PacketCaptureService:
 
         return list(clients.values())[:limit]
     
+    async def get_active_flows(self) -> List[Dict[str, Any]]:
+        """Get a list of all currently active network flows."""
+        return [flow.dict() for flow in self.flow_manager.get_active_flows()]
+
+    async def get_closed_flows(self) -> List[Dict[str, Any]]:
+        """Get a list of all closed network flows."""
+        return [flow.dict() for flow in self.flow_manager.get_closed_flows()]
+
     def _get_top_ports(self, limit: int = 10) -> Dict[int, int]:
         """Get top N ports by traffic"""
         sorted_ports = sorted(
