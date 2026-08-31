@@ -7,7 +7,8 @@ load_dotenv()
 
 from app.api.routes import (
     traffic_router, threats_router, packets_router,
-    admin_router, notifications_router, health_router, users_router, proxy_service
+    admin_router, notifications_router, health_router, users_router,
+    proxy_service, mitre_router, ml_router
 )
 
 # This file is the FastAPI bootstrap: app creation, middleware, router wiring,
@@ -36,6 +37,8 @@ app.include_router(threats_router)
 app.include_router(packets_router)
 app.include_router(admin_router)
 app.include_router(notifications_router)
+app.include_router(mitre_router)
+app.include_router(ml_router)
 app.include_router(users_router)
 
 

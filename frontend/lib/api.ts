@@ -595,10 +595,12 @@ export async function mapThreatToMitre(threatType: string): Promise<MitreMapping
 }
 
 export async function scanWebsiteUrl(url: string): Promise<UrlScanResponse> {
-  return apiRequest<UrlScanResponse>("/api/threats/scan-url", {
-    method: "POST",
-    body: JSON.stringify({ url }),
-  })
+  return apiRequest<UrlScanResponse>(
+    buildUrl("/api/threats/scan-url", { url }),
+    {
+      method: "POST",
+    }
+  )
 }
 
 export async function simulateAttackScenario(scenarioType: "multi_stage" | "trojan" = "multi_stage"): Promise<{

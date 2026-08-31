@@ -12,6 +12,8 @@ from app.services.packet_capture import PacketCaptureService
 from app.services.mobile_proxy import MobileProxyService
 from app.services.threat_detection import ThreatDetectionService
 from app.services.traffic_analysis import TrafficAnalysisService
+from app.services.mitre_mapping import MitreMappingService
+from app.services.ml_benchmark import MLBenchmarkService
 
 # ===== Initialize Services =====
 # These service instances hold the backend state that the route handlers expose
@@ -20,6 +22,8 @@ packet_service = PacketCaptureService()
 threat_service = ThreatDetectionService()
 proxy_service = MobileProxyService(packet_service, threat_service)
 traffic_service = TrafficAnalysisService()
+mitre_service = MitreMappingService()
+ml_service = MLBenchmarkService()
 
 # ===== Request/Response Models =====
 # These Pydantic models are local API-side shapes used for request/response typing
@@ -682,3 +686,154 @@ async def mark_notification_read(notif_id: str):
 async def delete_notification(notif_id: str):
     """Delete notification"""
     return {"success": True, "notification_id": notif_id}
+
+# ===== MITRE ATT&CK ROUTES =====
+mitre_router = APIRouter(prefix="/api/mitre", tags=["MITRE ATT&CK"])
+
+
+@mitre_router.get("/taxonomy")
+async def get_mitre_taxonomy():
+    return mitre_service.get_taxonomy()
+
+
+@mitre_router.get("/stages")
+async def get_mitre_stages():
+    taxonomy = mitre_service.get_taxonomy()
+    return {
+        "stages": list(taxonomy["tactics"].values()),
+        "total_stages": len(taxonomy["tactics"]),
+        "framework_version": taxonomy["framework_version"],
+    }
+
+
+@mitre_router.get("/attack-chain")
+async def get_mitre_attack_chain():
+    packets = packet_service.packets
+    stats = await packet_service.get_packet_statistics()
+
+    detected_threats = (
+        await threat_service.detect_threats(packets, stats)
+        if packets
+        else []
+    )
+
+    manual_threats = getattr(threat_service, "manual_threats", [])
+
+    threats = detected_threats + manual_threats
+
+    return mitre_service.build_attack_chain_summary(threats)
+
+@mitre_router.post("/map-threat")
+async def map_threat_to_mitre(threat_type: str = Query(...)):
+    return mitre_service.map_threat(threat_type)
+
+
+@mitre_router.post("/simulate-scenario")
+async def simulate_mitre_scenario(
+    scenario_type: str = Query("multi_stage")
+):
+    scenario_type = scenario_type.lower().strip()
+
+    if scenario_type == "trojan":
+        simulated_types = [
+            "MALICIOUS_SITE_VISIT",
+            "TROJAN",
+            "C2_COMMUNICATION",
+        ]
+    else:
+        simulated_types = [
+            "SEQUENTIAL_PORT_PROBE",
+            "PORT_SCAN",
+            "TROJAN",
+            "C2_COMMUNICATION",
+            "DATA_EXFILTRATION",
+            "RANSOMWARE",
+        ]
+
+    simulated_threats = []
+
+    for index, threat_type in enumerate(simulated_types):
+        mapping = mitre_service.map_threat(threat_type)
+
+        simulated_threats.append({
+            "id": f"simulation_{index + 1}",
+            "type": threat_type,
+            "severity": "HIGH",
+            "source_ip": "192.168.1.100",
+            "destination_host": "simulated-threat.local",
+            "timestamp": datetime.now().isoformat(),
+            "status": "active",
+            **mapping,
+        })
+
+    # Persist simulated threats so the attack-chain endpoint
+    # can see them on subsequent requests.
+    threat_service.manual_threats = [
+        threat
+        for threat in threat_service.manual_threats
+        if not str(threat.get("id", "")).startswith("simulation_")
+    ]
+
+    threat_service.manual_threats.extend(simulated_threats)
+    threat_service.threats = threat_service._merge_all_threats()
+
+    return {
+        "success": True,
+        "scenario_type": scenario_type,
+        "injected_count": len(simulated_threats),
+        "attack_chain": mitre_service.build_attack_chain_summary(
+            simulated_threats
+        ),
+    }
+
+
+@mitre_router.post("/clear-simulation")
+async def clear_mitre_simulation():
+    before = len(threat_service.manual_threats)
+
+    threat_service.manual_threats = [
+        threat
+        for threat in threat_service.manual_threats
+        if not str(threat.get("id", "")).startswith("simulation_")
+    ]
+
+    cleared_count = before - len(threat_service.manual_threats)
+    threat_service.threats = threat_service._merge_all_threats()
+
+    return {
+        "success": True,
+        "cleared_count": cleared_count,
+        "attack_chain": mitre_service.build_attack_chain_summary([]),
+    }
+
+
+# ===== ML BENCHMARK ROUTES =====
+ml_router = APIRouter(prefix="/api/ml", tags=["Machine Learning"])
+
+
+@ml_router.get("/benchmark")
+async def get_ml_benchmark():
+    return ml_service.get_benchmark()
+
+
+@ml_router.post("/train-baseline")
+async def train_ml_baseline():
+    packets = packet_service.packets
+    return ml_service.train_on_live_data(packets)
+
+
+@ml_router.post("/predict-packet")
+async def predict_packet_ml(packet: Optional[Dict[str, Any]] = None):
+    packet_data = packet or {}
+    return ml_service.predict_packet(packet_data)
+
+
+# ===== WEBSITE SCANNER ROUTE =====
+@threats_router.post("/scan-url")
+async def scan_website_url(url: str = Query(...)):
+    return mitre_service.scan_website_threat(url)
+
+
+# Register additional routers
+# These are intentionally registered after their definitions so the
+# existing application bootstrap remains unchanged.
