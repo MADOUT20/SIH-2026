@@ -1,0 +1,17 @@
+ A feature extraction pipeline that ingests CIC-IDS-2018 or CTU-13 CSV flow records and/or raw PCAP files
+(parsed using Scapy or PyShark) and outputs a timestamped, normalised feature matrix covering both flow-level
+and packet-level attributes described above.
+• A trained world model (LSTM, Transformer, or GNN architecture) that demonstrably learns traffic state transition
+dynamics â€” not a static input-output classifier. Training scripts, model weights, and a reproducible training
+configuration must be included.
+• An infiltration prediction engine that performs K-step forward simulation from a current traffic snapshot and
+outputs: infiltration probability score, predicted MITRE ATT&CK stage, and top contributing traffic features.
+• An explainability output for each prediction â€” using SHAP values or model attention weights â€” identifying
+which flags, ports, or flow statistics are driving the prediction. Black-box outputs without interpretability are not
+acceptable.
+• A working demonstration interface (Streamlit, Flask web app, or CLI) that accepts a PCAP or CSV file as input,
+runs the world model inference, and displays the infiltration probability timeline, flagged flows, and attack stage
+annotations. The interface must run fully offline without cloud API dependencies.
+• Benchmark results comparing model performance (F1 score, precision, recall, false positive rate) against a
+logistic regression baseline trained on the same features, demonstrating that the world model's temporal
+dynamics learning provides measurable improvement.
