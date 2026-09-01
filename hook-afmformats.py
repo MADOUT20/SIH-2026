@@ -9,3 +9,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 # ------------------------------------------------------------------
+
+# Hook for afmformats: https://pypi.python.org/pypi/afmformats
+
+from PyInstaller.utils.hooks import collect_data_files
+
+datas = collect_data_files('afmformats')

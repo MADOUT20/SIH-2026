@@ -9,3 +9,11 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 # ------------------------------------------------------------------
+# hook for https://github.com/hbldh/bleak
+
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
+from PyInstaller.compat import is_win
+
+if is_win:
+    datas = collect_data_files('bleak', subdir=r'backends\dotnet')
+    binaries = collect_dynamic_libs('bleak')

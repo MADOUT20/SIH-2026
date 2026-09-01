@@ -9,3 +9,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 # ------------------------------------------------------------------
+
+# Hook for https://github.com/astropy/astropy-iers-data
+
+from PyInstaller.utils.hooks import collect_data_files
+datas = collect_data_files("astropy_iers_data")

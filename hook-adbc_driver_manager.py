@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------
-# Copyright (c) 2020 PyInstaller Development Team.
+# Copyright (c) 2026 PyInstaller Development Team.
 #
 # This file is distributed under the terms of the GNU General Public
 # License (version 2.0 or later).
@@ -9,3 +9,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 # ------------------------------------------------------------------
+
+
+hiddenimports = ['adbc_driver_manager._static_version']
+module_collection_mode = {
+    'adbc_driver_manager._static_version': 'py',
+}

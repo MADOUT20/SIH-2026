@@ -9,3 +9,11 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 # ------------------------------------------------------------------
+"""
+AnyIO contains a number of back-ends as dynamically imported modules.
+This hook was tested against AnyIO v1.4.0.
+"""
+
+from PyInstaller.utils.hooks import collect_submodules
+
+hiddenimports = collect_submodules('anyio._backends')

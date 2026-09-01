@@ -9,3 +9,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 # ------------------------------------------------------------------
+
+# Hook for appy.pod: https://pypi.python.org/pypi/appy/0.9.1
+
+from PyInstaller.utils.hooks import collect_data_files
+
+datas = collect_data_files('appy.pod', True)

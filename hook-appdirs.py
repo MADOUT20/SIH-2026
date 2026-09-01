@@ -9,3 +9,13 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 # ------------------------------------------------------------------
+"""
+Import hook for appdirs.
+
+On Windows, appdirs tries 2 different methods to get well-known directories
+from the system: First with win32com, then with ctypes. Excluding win32com here
+avoids including all the win32com related DLLs in programs that don't include
+them otherwise.
+"""
+
+excludedimports = ['win32com']
