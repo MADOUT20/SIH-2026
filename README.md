@@ -114,6 +114,24 @@ To capture live traffic from your Wi-Fi/Ethernet network card:
 
 ---
 
+### 🍎 macOS Quick Start
+
+**Prerequisites:** Homebrew, Python 3.12, and Node.js.
+
+1. **Prepare Scripts:** `chmod +x scripts/*.sh`
+2. **Setup Environment:** `./scripts/setup-local.sh`
+3. **Start Backend (Terminal 1):**
+   ```bash
+   cd backend && sudo env ALLOWED_ORIGINS="http://localhost:3000" PROXY_ENABLED="1" PROXY_HOST="0.0.0.0" PROXY_PORT="8888" ./.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+4. **Start Frontend (Terminal 2):**
+   ```bash
+   cd frontend && npm run dev
+   ```
+*Tip: If you see a `python-multipart` error, run: `./backend/.venv/bin/python -m pip install python-multipart`*
+
+---
+
 ## 📖 Documentation Index
 
 - **[SETUP.md](SETUP.md)**: Full step-by-step installation, dependency configuration, live vs demo modes, PCAP/CSV testing, and troubleshooting.
