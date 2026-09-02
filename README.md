@@ -1,4 +1,4 @@
-# 🛡️ NetGuard — Network-Level Malware & Threat Detection System
+# 🛡️ NetGuard — AI-Powered Network Attack Forecasting & Threat Detection System
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![Node.js 18+](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
@@ -8,6 +8,9 @@
 [![License](https://img.shields.io/badge/License-MIT-purple.svg)](#)
 
 A full-stack, real-time network defense and attack forecasting system built for **SIH (Problem Statement: AI-based Network Attack Forecasting from Network Traffic Data - ID 26153)**. NetGuard combines live kernel-level packet inspection (Scapy/Npcap), behavioral heuristic analysis, and a 2-layer PyTorch LSTM World Model trained on CSE-CIC-IDS2018 dataset to detect intrusions and forecast future attack trajectories up to 25 seconds into the future.
+
+### 🎯 The Forecasting Pipeline
+`Live Network Traffic` $\rightarrow$ `Canonical Feature Extraction (27 Metrics)` $\rightarrow$ `LSTM World Model (30-State Window)` $\rightarrow$ `Multi-Horizon Attack Prediction (t+1 to t+5)`
 
 ---
 
