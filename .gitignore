@@ -1,0 +1,70 @@
+# Virtual Environments
+.venv/
+backend/.venv/
+venv/
+env/
+ENV/
+
+# Node & Frontend Dependencies & Builds
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+out/
+frontend/out/
+*.tsbuildinfo
+
+# PyInstaller & Production Distributions
+dist/
+build/
+*.spec.bak
+
+# Python Bytecode & Cache
+__pycache__/
+*/__pycache__/
+*/*/__pycache__/
+*/*/*/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Datasets & Large Binary Parquet/CSV Files (Local Only)
+data/
+*.parquet
+processed_traffic.parquet
+*.csv
+
+# Zip Archives & Installers
+*.zip
+*.tar.gz
+*.7z
+npcap-1.88.exe
+
+# Environment Variables & Secret Keys
+.env
+.env*.local
+backend/.env
+frontend/.env.local
+*.key
+*.pfx
+certs/*.key
+certs/*.pfx
+
+# IDE, OS & Antigravity Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.gemini/
+.agents/
+
+# Temporary / Miscellaneous Files
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+info for project.txt
+info for project frontend.txt
+memory.md
+ps.txt
+TASK FOR ME .png
+knowledge_base.txt

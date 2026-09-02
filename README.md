@@ -1,175 +1,122 @@
-# NetGuard - Network Security Dashboard
+# 🛡️ NetGuard — Network-Level Malware & Threat Detection System
 
-A full-stack security monitoring dashboard with real-time packet inspection, threat detection, and traffic analysis.
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
+[![Node.js 18+](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.135.0-009688.svg)](https://fastapi.tiangolo.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-16.1.6-black.svg)](https://nextjs.org/)
+[![PyTorch LSTM](https://img.shields.io/badge/PyTorch-LSTM%20World%20Model-EE4C2C.svg)](https://pytorch.org/)
+[![License](https://img.shields.io/badge/License-MIT-purple.svg)](#)
 
-## 🏗️ Project Structure
+A full-stack, real-time network defense and attack forecasting system built for **SIH (Problem Statement: AI-based Network Attack Forecasting from Network Traffic Data - ID 26153)**. NetGuard combines live kernel-level packet inspection (Scapy/Npcap), behavioral heuristic analysis, and a 2-layer PyTorch LSTM World Model trained on CSE-CIC-IDS2018 dataset to detect intrusions and forecast future attack trajectories up to 25 seconds into the future.
+
+---
+
+## 🏗️ Architecture & Component Overview
 
 ```
-project-root/
-├── frontend/          # Next.js + React UI (Deployed on Vercel)
-├── backend/           # FastAPI backend (Deploy on Railway/Render/AWS)
-├── scripts/           # Local setup and run helpers
-└── README.md
+NetGuard/
+├── backend/                  # FastAPI Application & Threat Engine
+│   ├── app/
+│   │   ├── api/routes.py     # Consolidated REST & WebSocket Endpoints
+│   │   ├── models/           # Pydantic Schemas & Data Contracts
+│   │   ├── services/         # Packet capture, Proxy, Threat hunting, ML Benchmark
+│   │   └── utils/            # IP hashing, CSV mapping, event logging helpers
+│   ├── requirements.txt      # Production Python dependencies
+│   └── requirements-dev.txt  # Testing & linter dependencies
+├── frontend/                 # Next.js 16 + React 19 Security Dashboard
+│   ├── app/                  # Landing page, /dashboard, /workbench routes
+│   ├── components/           # Real-time metrics, charts, tables, UI components
+│   ├── hooks/                # Keyboard shortcuts, toast, mobile detection
+│   └── lib/api.ts            # Typed Axios API Client with fallback resilience
+├── models/                   # Neural Network Architecture & Model Weights
+│   ├── network_world_model.py# PyTorch LSTM Multi-Head World Model Definition
+│   └── trained/              # Weights (world_model.pth), Scaler, Configs, Metrics
+├── inference/                # Real-Time Forecasting & Attribution Engine
+│   └── forecast.py           # Gradient-based Saliency & 5-Step Forward Forecasting
+├── certs/                    # SSL/TLS Certificates for Local HTTPS Gateway
+├── samples/                  # Pre-packaged Offline PCAP & CSV Test Data
+├── scripts/                  # Automated Setup, Capture, & Packaging Scripts
+├── start-all.bat             # One-click launcher for Backend + Frontend
+├── start-backend.bat         # Standalone backend launcher
+├── start-frontend.bat        # Standalone frontend launcher
+├── README.md                 # Project Overview
+├── SETUP.md                  # Comprehensive Step-by-Step Installation Guide
+└── REQUIRED_EXTERNAL_DEPENDENCIES.md # Details on external runtimes & datasets
 ```
 
-## 🚀 Quick Start
+---
+
+## ⚡ Key Features
+
+1. **AI Attack Forecasting (PyTorch LSTM World Model)**:
+   - Aggregates traffic into 5-second observation buckets across 27 canonical network features.
+   - Evaluates a 30-state sliding window (150 seconds of history) to forecast multi-horizon attack probability ($t+1$ to $t+5$, up to 25s ahead).
+   - Maps detected anomalies directly to MITRE ATT&CK tactics (Credential Access, Initial Access, Execution, C2 Bot, Impact DoS).
+   - Computes gradient-based feature attribution to provide explainable AI insights for security analysts.
+
+2. **Live Packet Capture & Hardware Sniffing**:
+   - Kernel-level live packet sniffing via Scapy and Npcap on Windows.
+   - Automatic interface detection and packet normalization.
+
+3. **Mobile & Device Proxy Gateway**:
+   - Built-in HTTP/HTTPS transparent proxy on port `8888` allowing smartphones, IoT devices, or other LAN endpoints to route traffic through NetGuard.
+
+4. **Offline Forensics & Security Workbench**:
+   - Ingest offline packet captures (`.pcap`, `.pcapng`) or flow spreadsheets (`.csv`).
+   - Instant feature extraction and multi-step threat forecasting on historical incident logs.
+
+5. **Integrated Local HTTPS Gateway**:
+   - Built-in TLS reverse proxy on port `443` unifying frontend and backend under single HTTPS origin.
+
+---
+
+## 🚀 2-Minute Quick Start
 
 ### Prerequisites
-- Node.js 18+
-- Python 3.11+
-- npm or pnpm
+- **Windows 10/11 64-bit**
+- **Python 3.11 or 3.12** ([python.org](https://www.python.org/downloads/))
+- **Node.js 18+ or 20+** ([nodejs.org](https://nodejs.org/))
+- **Npcap** (Required **only** for live packet capture: [npcap.com](https://npcap.com/#download))
 
-### Local Development
+### Option A: Automated PowerShell Setup (Recommended)
 
-**Shell Setup**
-```bash
-./scripts/setup-local.sh
-./scripts/dev-local.sh
-```
+1. Open PowerShell in this folder:
+   ```powershell
+   .\scripts\setup-local.ps1
+   ```
+2. Start NetGuard in Standard Dev Mode:
+   ```powershell
+   .\scripts\dev-local.ps1
+   ```
+3. Open your browser to **http://localhost:3000**!
 
-This will start:
-- Frontend: http://localhost:3000
-- Backend: http://localhost:8000
+---
 
-You can also run a quick dependency check without starting the app:
-```bash
-./scripts/dev-local.sh --check
-```
+### Option B: One-Click Batch Launcher
 
-**Windows PowerShell**
-```powershell
-.\scripts\setup-local.ps1
-.\scripts\dev-local.ps1
-```
+1. Ensure Python and Node.js dependencies are installed.
+2. Double-click `start-all.bat`.
+3. Separate command prompt windows will launch:
+   - **Backend API**: `http://localhost:8000` (Docs at `http://localhost:8000/docs`)
+   - **Frontend UI**: `http://localhost:3000`
 
-Quick dependency check:
-```powershell
-.\scripts\dev-local.ps1 -Check
-```
+---
 
-If you want packet capture on Windows:
-```powershell
-.\scripts\dev-local-capture.ps1
-```
+### Option C: Live Packet Capture Mode (Administrator)
 
-Notes for Windows:
-- the PowerShell scripts open separate backend and frontend windows
-- install `Npcap` before trying live packet capture
-- run capture mode so the backend starts with Administrator access
-- Windows capture mode also starts the local phone proxy on port `8888`
-- use the printed Windows LAN IP as the phone proxy host when testing over Wi-Fi or hotspot
-- allow the Windows Firewall/Admin prompt so the phone can actually reach the proxy
+To capture live traffic from your Wi-Fi/Ethernet network card:
+1. Open PowerShell **as Administrator**.
+2. Run:
+   ```powershell
+   .\scripts\dev-local-capture.ps1
+   ```
+3. This starts elevated packet capture and opens the mobile proxy on port `8888`.
 
-### Environment Variables
+---
 
-`./scripts/setup-local.sh` creates local env files for you if they do not exist yet.
-The defaults are:
+## 📖 Documentation Index
 
-```bash
-# Frontend
-NEXT_PUBLIC_API_URL=http://localhost:8000
-BACKEND_API_URL=http://localhost:8000
-
-# Backend
-BACKEND_HOST=0.0.0.0
-BACKEND_PORT=8000
-ALLOWED_ORIGINS=http://localhost:3000
-KNOWN_MALICIOUS_DOMAINS=
-KNOWN_MALICIOUS_IPS=
-```
-
-### Watched Site Detection
-
-The backend can treat watched bad domains and watched bad destination IPs as first-class threats when you provide real indicators.
-
-- `MALICIOUS_SITE_VISIT` is raised when packet capture sees a watched site through DNS, a browser host indicator, or a resolved destination IP.
-- `MALICIOUS_DESTINATION` is raised when outbound traffic hits an IP in `KNOWN_MALICIOUS_IPS`.
-- Leave those lists empty if you only want behavior-based detection.
-- Add watched sites in `backend/.env` using `domain` or `domain=SEVERITY`.
-
-Example:
-```bash
-KNOWN_MALICIOUS_DOMAINS=tlauncher.org=HIGH,some-risky-site.example=CRITICAL
-```
-
-Notes:
-- A host or DNS match keeps the configured severity.
-- An IP-only match is still useful, but it is treated as slightly lower confidence because shared hosting and CDNs can reuse the same IP.
-
-For a Windows live packet-capture test:
-
-1. Start capture mode:
-```powershell
-.\scripts\dev-local-capture.ps1
-```
-2. Open `http://localhost:3000/dashboard`
-3. Start a longer capture:
-```bash
-curl -X POST "http://localhost:8000/api/packets/capture/start?count=200&timeout=15"
-```
-4. Open or hard-reload the watched site during the capture window.
-
-The dashboard will only raise `MALICIOUS_SITE_VISIT` if you have added real watched domains to `backend/.env`. Otherwise it will focus on behavior-based findings such as scans, suspicious DNS, beaconing, and exfiltration.
-
-### Mobile Testing
-
-The intended flow is:
-- your system runs the dashboard and monitoring backend
-- your phone is only a client using the local proxy
-- the phone does not need to open the dashboard
-
-1. Start capture mode:
-```powershell
-.\scripts\dev-local-capture.ps1
-```
-2. Look for the printed proxy address such as `192.168.0.101:8888`
-3. On your phone, use the Wi-Fi proxy settings:
-   `Wi-Fi -> your network -> Configure Proxy -> Manual`
-4. Set `Server` to your  LAN IP and `Port` to `8888`
-5. Visit a watched site on the phone while the Windows dashboard stays open locally
-
-Important:
-- The phone does not need dashboard access.
-- The local proxy mode is the easiest way to route phone website traffic through the backend without reconfiguring your whole network.
-- HTTPS websites still work in proxy mode because the proxy records the destination host from the CONNECT request and tunnels the traffic through unchanged.
-- Start the Windows capture script, copy the printed proxy IP, and use that as the phone's manual proxy host.
-
-## 🔌 API Endpoints
-
-- `GET /health` - Health check
-- `GET /api/traffic` - Traffic statistics
-- `GET /api/threats` - Threat detection data
-- `GET /api/packets` - Packet inspection data
-- `GET /admin/` - Admin panel data
-
-## 📝 Frontend API Integration
-
-Update your components to call the backend:
-
-```typescript
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-const fetchTraffic = async () => {
-  const res = await fetch(`${API_URL}/api/traffic`);
-  return res.json();
-};
-```
-
-## 🛠️ Tech Stack
-
-**Frontend:**
-- Next.js 16+
-- React 19
-- Tailwind CSS
-- Shadcn/ui
-- Axios
-
-**Backend:**
-- FastAPI
-- Uvicorn
-- Pydantic
-
-## 📚 Additional Resources
-
-- [Next.js Docs](https://nextjs.org/docs)
-- [FastAPI Docs](https://fastapi.tiangolo.com)
+- **[SETUP.md](SETUP.md)**: Full step-by-step installation, dependency configuration, live vs demo modes, PCAP/CSV testing, and troubleshooting.
+- **[REQUIRED_EXTERNAL_DEPENDENCIES.md](REQUIRED_EXTERNAL_DEPENDENCIES.md)**: List of software, runtimes, drivers, and external datasets not bundled in the source archive.
+- **[PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md)**: Exhaustive API endpoint specification, Pydantic schemas, and component interactions.
+- **[TRAINING.md](TRAINING.md)**: Machine learning pipeline, dataset breakdown (CSE-CIC-IDS2018), temporal windowing math, and empirical evaluation metrics.
