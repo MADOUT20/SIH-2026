@@ -6,6 +6,7 @@ set -e
 
 # --- CONFIGURATION ---
 # Use the verified GitHub Release asset
+# NOTE: Update this URL after creating a GitHub Release (v1.0.0)
 PACKAGE_URL="https://github.com/MADOUT20/SIH-2026/releases/download/v1.0.0/netguard-cli.zip"
 INSTALL_DIR="$HOME/.netguard"
 BIN_LINK="/usr/local/bin/netguard"
