@@ -11,6 +11,7 @@ setup(
         "scikit-learn",
         "joblib",
         "scapy",
+        "pyarrow",
     ],
     entry_points={
         "console_scripts": [
