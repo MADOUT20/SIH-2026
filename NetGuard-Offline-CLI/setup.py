@@ -10,6 +10,7 @@ setup(
         "torch",
         "scikit-learn",
         "joblib",
+        "scapy",
     ],
     entry_points={
         "console_scripts": [
