@@ -13,7 +13,24 @@ def print_header(text):
     print(f" {text} ")
     print("="*60)
 
+def print_startup_banner():
+    # ANSI Color Codes
+    CYAN = "\033[1;36m"    # Electric Cyan
+    WHITE = "\033[1;37m"    # Bold White
+    GRAY = "\033[38;5;244m" # Dim Steel Gray
+    RESET = "\033[0m"
+
+    # The Logo Structure
+    banner = (
+        f"\n{CYAN}◢◤{RESET} {WHITE}NETGUARD{RESET} {CYAN}◥◣{RESET} {GRAY}v1.0.0\n"
+        f"{GRAY}────────────────────────────────────────────────────────────\n"
+        f"{CYAN}  NETWORK SECURITY CLI{RESET} {GRAY}| OFFLINE DEMONSTRATION INTERFACE\n"
+        f"{GRAY}────────────────────────────────────────────────────────────{RESET}\n"
+    )
+    print(banner)
+
 def main():
+    print_startup_banner()
     parser = argparse.ArgumentParser(description="NetGuard Offline AI Attack Forecaster")
     parser.add_argument("--file", type=str, help="Path to PCAP or CSV network traffic file")
     parser.add_argument("--demo", action="store_true", help="Run a demonstration analysis using bundled sample data")
