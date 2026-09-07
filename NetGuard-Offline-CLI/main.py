@@ -22,7 +22,7 @@ def print_startup_banner():
 
     # The Logo Structure
     banner = (
-        f"\n{CYAN}◢◤{RESET} {WHITE}NETGUARD{RESET} {CYAN}◥◣{RESET} {GRAY}v1.0.0\n"
+        f"\n{CYAN}◢◤{RESET} {WHITE}NETGUARD ⛨{RESET} {CYAN}◥◣{RESET} {GRAY}v1.0.0\n"
         f"{GRAY}────────────────────────────────────────────────────────────\n"
         f"{CYAN}  NETWORK SECURITY CLI{RESET} {GRAY}| OFFLINE DEMONSTRATION INTERFACE\n"
         f"{GRAY}────────────────────────────────────────────────────────────{RESET}\n"
