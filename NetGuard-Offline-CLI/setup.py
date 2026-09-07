@@ -5,11 +5,11 @@ setup(
     version="1.0.0",
     packages=find_packages(),
     install_requires=[
-        "numpy==1.26.4",
-        "pandas==2.2.2",
+        "numpy",
+        "pandas",
         "torch",
-        "scikit-learn==1.5.1",
-        "joblib==1.3.2",
+        "scikit-learn",
+        "joblib",
     ],
     entry_points={
         "console_scripts": [
