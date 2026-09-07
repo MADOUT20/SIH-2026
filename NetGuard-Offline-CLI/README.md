@@ -34,12 +34,20 @@ curl -sSL https://raw.githubusercontent.com/MADOUT20/SIH-2026/main/NetGuard-Offl
 
 Once installed, you can run the tool from any directory using the `netguard` command:
 
+### Try the Demo (Fastest way to test)
+Run the tool using bundled sample data to see the AI in action immediately:
+\`\`\`bash
+netguard --demo
+\`\`\`
+
+### Analyze Your Own Data
 \`\`\`bash
 netguard --file /path/to/your/traffic.pcap
 \`\`\`
 
 ### Arguments:
-- `--file`: (Required) Path to the network traffic file to analyze.
+- `--demo`: (Optional) Run the tool using built-in sample datasets.
+- `--file`: (Required if not using --demo) Path to the network traffic file to analyze.
 
 ## 📊 How it Works
 

@@ -46,15 +46,23 @@ fi
 
 echo "[*] Found application directory: $ACTUAL_DIR"
 
+# 4b. Download Sample Files for Demo Mode
+echo "[*] Downloading demo samples..."
+mkdir -p "$ACTUAL_DIR/samples"
+curl -L "https://raw.githubusercontent.com/MADOUT20/SIH-2026/main/NetGuard-Offline-CLI/samples/sample_network_flows.csv" -o "$ACTUAL_DIR/samples/sample_network_flows.csv"
+curl -L "https://raw.githubusercontent.com/MADOUT20/SIH-2026/main/NetGuard-Offline-CLI/samples/sample_exploit_traffic.pcap" -o "$ACTUAL_DIR/samples/sample_exploit_traffic.pcap"
+
 # 5. Install Dependencies
-echo "[*] Installing AI dependencies (PyTorch, Scapy, Pandas)..."
+echo "[*] Creating isolated environment for NetGuard..."
 if ! command -v python3 &> /dev/null; then
     echo "Error: python3 is not installed. Please install Python 3.8+ first."
     exit 1
 fi
 
-# CORRECTED: Use pip to install requirements
-python3 -m pip install -r "$ACTUAL_DIR/requirements.txt"
+# Create virtual environment to avoid system Python version conflicts (e.g. 3.14 instability)
+python3 -m venv "$ACTUAL_DIR/venv"
+"$ACTUAL_DIR/venv/bin/pip" install --upgrade pip
+"$ACTUAL_DIR/venv/bin/pip" install -r "$ACTUAL_DIR/requirements.txt"
 
 # 6. Create Global Symbolic Link
 echo "[*] Creating global command 'netguard'..."

@@ -15,10 +15,24 @@ def print_header(text):
 
 def main():
     parser = argparse.ArgumentParser(description="NetGuard Offline AI Attack Forecaster")
-    parser.add_argument("--file", type=str, required=True, help="Path to PCAP or CSV network traffic file")
+    parser.add_argument("--file", type=str, help="Path to PCAP or CSV network traffic file")
+    parser.add_argument("--demo", action="store_true", help="Run a demonstration analysis using bundled sample data")
     args = parser.parse_args()
 
-    file_path = args.file
+    if args.demo:
+        # Look for bundled samples relative to the script location
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(script_dir, "samples", "sample_network_flows.csv")
+        if not os.path.exists(file_path):
+            print("Error: Demo sample file not found. Please reinstall the tool.")
+            sys.exit(1)
+        print("\n[*] Running in DEMO MODE using bundled sample data...")
+    elif args.file:
+        file_path = args.file
+    else:
+        parser.print_help()
+        sys.exit(1)
+
     if not os.path.exists(file_path):
         print(f"Error: File not found at {file_path}")
         sys.exit(1)

@@ -7,4 +7,10 @@ done
 SCRIPT_DIR="$(cd "$(dirname "$TARGET_SCRIPT")" && pwd)"
 
 cd "$SCRIPT_DIR"
-python3 launch.py "$@"
+
+# Use the bundled virtual environment if it exists, otherwise fallback to system python3
+if [ -f "$SCRIPT_DIR/venv/bin/python" ]; then
+  "$SCRIPT_DIR/venv/bin/python" launch.py "$@"
+else
+  python3 launch.py "$@"
+fi
