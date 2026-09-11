@@ -1,173 +1,272 @@
-"""Separate caller cancellation from backend task and executor-future results."""
+"""Async wrapper around :class:`SoftReadWriteLock` for use with ``asyncio``."""
 
 from __future__ import annotations
 
 import asyncio
-import contextlib
-import time
-from concurrent.futures import Future as ConcurrentFuture
-from dataclasses import dataclass
-from threading import Lock
-from typing import TYPE_CHECKING, Final, Generic, NoReturn, TypeVar, cast
+import functools
+import os
+from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING, ParamSpec, TypeVar
 
-from ._api import _append_exception_context, _raise_chained_errors
+from filelock._async import (
+    _BackendOutcome,
+    _capture_call,
+    _drain_future,
+    _future_result,
+    _raise_cancelled_error,
+    _wait_until_done,
+)
+
+from ._sync import SoftReadWriteLock
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Awaitable, Callable
+    from collections.abc import AsyncGenerator, Callable
+    from concurrent import futures
+    from types import TracebackType
 
-_T = TypeVar("_T")
+    from filelock._api import AcquireReturnProxy
 
-
-class _AsyncTransitionUnavailableError(Exception):
-    pass
-
-
-@dataclass(frozen=True)
-class _BackendOutcome(Generic[_T]):
-    value: _T | None = None
-    error: BaseException | None = None
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
 
 
-class _AsyncTransitionGate:
-    def __init__(self) -> None:
-        self._tail_lock: Final[Lock] = Lock()
-        self._tail: ConcurrentFuture[None] | None = None
+class AsyncSoftReadWriteLock:
+    """
+    Async wrapper around :class:`SoftReadWriteLock` for ``asyncio`` applications.
 
-    @contextlib.asynccontextmanager
-    async def hold(self) -> AsyncIterator[None]:
-        ticket: ConcurrentFuture[None] = ConcurrentFuture()
-        with self._tail_lock:
-            predecessor = self._tail
-            self._tail = ticket
-        if predecessor is not None:
-            try:
-                await _wait_until_done(asyncio.wrap_future(predecessor))
-            except asyncio.CancelledError:
-                predecessor.add_done_callback(lambda _predecessor: self._leave(ticket))
-                raise
-        try:
-            yield
-        finally:
-            self._leave(ticket)
+    The sync class's blocking filesystem operations run on a thread pool via ``loop.run_in_executor()``. The
+    underlying :class:`SoftReadWriteLock` handles reentrancy, upgrade/downgrade rules, fork handling, heartbeat and
+    TTL stale detection, and singleton behavior.
 
-    @contextlib.asynccontextmanager
-    async def hold_for_acquire(
+    :param lock_file: path to the lock file; sidecar state/write/readers live next to it
+    :param timeout: maximum wait time in seconds; ``-1`` means block indefinitely
+    :param blocking: if ``False``, raise :class:`~filelock.Timeout` immediately on contention
+    :param is_singleton: if ``True``, reuse existing :class:`SoftReadWriteLock` instances per resolved path
+    :param heartbeat_interval: seconds between heartbeat refreshes; default 30 s
+    :param stale_threshold: seconds of mtime inactivity before a marker is stale; defaults to ``3 * heartbeat_interval``
+    :param poll_interval: seconds between acquire retries under contention; default 0.25 s
+    :param loop: event loop for ``run_in_executor``; ``None`` uses the running loop
+    :param executor: executor for ``run_in_executor``; ``None`` uses the default executor
+
+    .. versionadded:: 3.27.0
+
+    """
+
+    def __init__(  # ruff:ignore[too-many-arguments]  # public constructor: one parameter per documented lock option
         self,
+        lock_file: str | os.PathLike[str],
+        timeout: float = -1,
         *,
-        blocking: bool,
-        cancel_check: Callable[[], bool] | None,
-        deadline: float | None,
-        poll_interval: float,
-    ) -> AsyncIterator[None]:
-        ticket: ConcurrentFuture[None] = ConcurrentFuture()
-        with self._tail_lock:
-            predecessor = self._tail
-            self._tail = ticket
-        if predecessor is not None and not predecessor.done():
-            try:
-                await self._wait_for_predecessor(
-                    predecessor,
-                    blocking=blocking,
-                    cancel_check=cancel_check,
-                    deadline=deadline,
-                    poll_interval=poll_interval,
-                )
-            except BaseException:
-                predecessor.add_done_callback(lambda _predecessor: self._leave(ticket))
-                raise
+        blocking: bool = True,
+        is_singleton: bool = True,
+        heartbeat_interval: float = 30.0,
+        stale_threshold: float | None = None,
+        poll_interval: float = 0.25,
+        loop: asyncio.AbstractEventLoop | None = None,
+        executor: futures.Executor | None = None,
+    ) -> None:
+        self._creator_pid = os.getpid()
+        self._lock = SoftReadWriteLock(
+            lock_file,
+            timeout,
+            blocking=blocking,
+            is_singleton=is_singleton,
+            heartbeat_interval=heartbeat_interval,
+            stale_threshold=stale_threshold,
+            poll_interval=poll_interval,
+        )
+        self._loop = loop
+        self._executor = executor
+
+    @property
+    def lock_file(self) -> str:
+        """The path to the lock file passed to the constructor."""
+        return self._lock.lock_file
+
+    @property
+    def timeout(self) -> float:
+        """The default timeout applied when ``acquire_read`` / ``acquire_write`` is called without one."""
+        return self._lock.timeout
+
+    @property
+    def blocking(self) -> bool:
+        """Whether ``acquire_*`` defaults to blocking; ``False`` makes contention raise immediately."""
+        return self._lock.blocking
+
+    @property
+    def loop(self) -> asyncio.AbstractEventLoop | None:
+        """The event loop used for ``run_in_executor``, or ``None`` for the running loop."""
+        return self._loop
+
+    @property
+    def executor(self) -> futures.Executor | None:
+        """The executor used for ``run_in_executor``, or ``None`` for the default executor."""
+        return self._executor
+
+    @asynccontextmanager
+    async def read_lock(self, timeout: float | None = None, *, blocking: bool | None = None) -> AsyncGenerator[None]:
+        """
+        Async context manager that acquires and releases a shared read lock.
+
+        :param timeout: maximum wait time in seconds, or ``None`` to use the instance default
+        :param blocking: if ``False``, raise :class:`~filelock.Timeout` immediately; ``None`` uses the instance default
+
+        :raises RuntimeError: if a write lock is already held on this instance
+        :raises Timeout: if the lock cannot be acquired within *timeout* seconds
+
+        """
+        await self.acquire_read(timeout, blocking=blocking)
         try:
             yield
         finally:
-            self._leave(ticket)
+            await self.release()
 
-    @staticmethod
-    async def _wait_for_predecessor(
-        predecessor: ConcurrentFuture[None],
-        *,
-        blocking: bool,
-        cancel_check: Callable[[], bool] | None,
-        deadline: float | None,
-        poll_interval: float,
-    ) -> None:
-        if not blocking:
-            raise _AsyncTransitionUnavailableError
-        waiter = asyncio.wrap_future(predecessor)
-        while not predecessor.done():
-            if cancel_check is not None and cancel_check():
-                raise _AsyncTransitionUnavailableError
-            if deadline is not None:
-                if (remaining := deadline - time.perf_counter()) <= 0:
-                    raise _AsyncTransitionUnavailableError
-                wait_interval = min(poll_interval, remaining) if cancel_check is not None else remaining
-            else:
-                wait_interval = poll_interval if cancel_check is not None else None
-            await asyncio.wait((waiter,), timeout=wait_interval)
+    @asynccontextmanager
+    async def write_lock(self, timeout: float | None = None, *, blocking: bool | None = None) -> AsyncGenerator[None]:
+        """
+        Async context manager that acquires and releases an exclusive write lock.
 
-    def _leave(self, ticket: ConcurrentFuture[None]) -> None:
-        with self._tail_lock:
-            if self._tail is ticket:
-                self._tail = None
-        ticket.set_result(None)
+        :param timeout: maximum wait time in seconds, or ``None`` to use the instance default
+        :param blocking: if ``False``, raise :class:`~filelock.Timeout` immediately; ``None`` uses the instance default
 
+        :raises RuntimeError: if a read lock is already held, or a write lock is held by a different thread
+        :raises Timeout: if the lock cannot be acquired within *timeout* seconds
 
-async def _drain_future(future: asyncio.Future[_BackendOutcome[_T]]) -> _T:
-    while not future.done():
-        with contextlib.suppress(asyncio.CancelledError):
+        """
+        await self.acquire_write(timeout, blocking=blocking)
+        try:
+            yield
+        finally:
+            await self.release()
+
+    async def acquire_read(
+        self, timeout: float | None = None, *, blocking: bool | None = None
+    ) -> AsyncAcquireSoftReadWriteReturnProxy:
+        """
+        Acquire a shared read lock.
+
+        See :meth:`SoftReadWriteLock.acquire_read` for reentrancy / upgrade / fork semantics. The blocking work runs
+        inside ``run_in_executor`` so other coroutines on the same loop keep progressing while this call waits.
+
+        :param timeout: maximum wait time in seconds, or ``None`` to use the instance default
+        :param blocking: if ``False``, raise :class:`~filelock.Timeout` immediately; ``None`` uses the instance default
+
+        :returns: a proxy usable as an async context manager to release the lock
+
+        :raises RuntimeError: if a write lock is already held, if this instance was invalidated by
+            :func:`os.fork`, or if :meth:`close` was called
+        :raises Timeout: if the lock cannot be acquired within *timeout* seconds
+
+        """
+        self._raise_if_inherited()
+        await self._run_acquire(functools.partial(self._lock.acquire_read, timeout, blocking=blocking))
+        return AsyncAcquireSoftReadWriteReturnProxy(lock=self)
+
+    async def acquire_write(
+        self, timeout: float | None = None, *, blocking: bool | None = None
+    ) -> AsyncAcquireSoftReadWriteReturnProxy:
+        """
+        Acquire an exclusive write lock.
+
+        See :meth:`SoftReadWriteLock.acquire_write` for the two-phase writer-preferring semantics. The blocking work
+        runs inside ``run_in_executor``.
+
+        :param timeout: maximum wait time in seconds, or ``None`` to use the instance default
+        :param blocking: if ``False``, raise :class:`~filelock.Timeout` immediately; ``None`` uses the instance default
+
+        :returns: a proxy usable as an async context manager to release the lock
+
+        :raises RuntimeError: if a read lock is already held, if a write lock is held by a different thread, if
+            this instance was invalidated by :func:`os.fork`, or if :meth:`close` was called
+        :raises Timeout: if the lock cannot be acquired within *timeout* seconds
+
+        """
+        self._raise_if_inherited()
+        await self._run_acquire(functools.partial(self._lock.acquire_write, timeout, blocking=blocking))
+        return AsyncAcquireSoftReadWriteReturnProxy(lock=self)
+
+    async def release(self, *, force: bool = False) -> None:
+        """
+        Release one level of the current lock.
+
+        :param force: if ``True``, release the lock completely regardless of the current lock level
+
+        :raises RuntimeError: if no lock is currently held and *force* is ``False``
+
+        """
+        if self._creator_pid == os.getpid():
+            await self._run(self._lock.release, force=force)
+
+    async def close(self) -> None:
+        """Release any held lock and release the underlying filesystem resources. Idempotent."""
+        if self._creator_pid == os.getpid():
+            await self._run(self._lock.close)
+
+    def _raise_if_inherited(self) -> None:
+        if self._creator_pid != os.getpid():  # pragma: forked child
+            msg = f"AsyncSoftReadWriteLock on {self.lock_file} was inherited across fork; construct a new instance"
+            raise RuntimeError(msg)
+
+    async def _run_acquire(self, acquire: Callable[[], AcquireReturnProxy]) -> None:
+        # run_in_executor cannot recall work the pool already started, so canceling the caller does not stop the sync
+        # acquire: it still creates its marker, sets the hold, and starts the heartbeat, which keeps the marker fresh
+        # forever so no peer on any host can evict it as stale. Wait the submitted call out and hand the claim back,
+        # the way AsyncReadWriteLock does.
+        acquire_future = self._submit(acquire)
+        try:
+            await _wait_until_done(acquire_future)
+        except asyncio.CancelledError as cancellation:
+            try:
+                await _drain_future(acquire_future)
+            except BaseException as error:  # ruff:ignore[blind-except]  # reported with the cancellation below
+                _raise_cancelled_error(cancellation, error)
+            try:
+                await _drain_future(self._submit(self._lock.release))
+            except BaseException as error:  # ruff:ignore[blind-except]  # reported with the cancellation below
+                _raise_cancelled_error(cancellation, error)
+            raise
+        _future_result(acquire_future)
+
+    async def _run(self, func: Callable[_P, _R], *args: _P.args, **kwargs: _P.kwargs) -> _R:
+        # A canceled release or close is already running on the pool thread; drain it so its outcome is observed
+        # instead of finishing unwatched, then let the cancellation through.
+        future = self._submit(func, *args, **kwargs)
+        try:
             await _wait_until_done(future)
-    return _future_result(future)
+        except asyncio.CancelledError as cancellation:
+            try:
+                await _drain_future(future)
+            except BaseException as error:  # ruff:ignore[blind-except]  # reported with the cancellation below
+                _raise_cancelled_error(cancellation, error)
+            raise
+        return _future_result(future)
+
+    def _submit(
+        self, func: Callable[_P, _R], *args: _P.args, **kwargs: _P.kwargs
+    ) -> asyncio.Future[_BackendOutcome[_R]]:
+        loop = self._loop or asyncio.get_running_loop()
+        return loop.run_in_executor(self._executor, _capture_call, functools.partial(func, *args, **kwargs))
 
 
-async def _wait_until_done(future: asyncio.Future[_T]) -> None:
-    if not future.done():
-        await asyncio.wait((future,))
+class AsyncAcquireSoftReadWriteReturnProxy:
+    """Async context-aware object that releases an :class:`AsyncSoftReadWriteLock` on exit."""
 
+    def __init__(self, lock: AsyncSoftReadWriteLock) -> None:
+        self.lock = lock
 
-def _future_result(future: asyncio.Future[_BackendOutcome[_T]]) -> _T:
-    outcome = future.result()
-    if (error := outcome.error) is None:
-        return cast("_T", outcome.value)
-    context = error.__context__
-    try:
-        raise error  # ruff:ignore[raise-within-try]  # the handler restores context changed across the async boundary
-    except BaseException:
-        error.__context__ = context
-        raise
+    async def __aenter__(self) -> AsyncSoftReadWriteLock:
+        return self.lock
 
-
-def _capture_call(func: Callable[[], _T]) -> _BackendOutcome[_T]:
-    try:
-        return _BackendOutcome(value=func())
-    except BaseException as error:  # ruff:ignore[blind-except]  # backend control-flow exceptions are operation results
-        return _BackendOutcome(error=error)
-
-
-def _raise_cancelled_error(cancellation: asyncio.CancelledError, error: BaseException) -> NoReturn:
-    # A reconciliation step failed while unwinding a cancellation, so keep both exception chains. Splice the error's
-    # existing context onto the cancellation, then make the cancellation the error's context, so both the failure and
-    # the cancellation that triggered it survive. Shared by the async wrappers so cancellations report the same way.
-    if (context := error.__context__) is not None and context is not cancellation:
-        if (cancellation_context := cancellation.__context__) is not None:
-            _append_exception_context(context, cancellation_context)
-        cancellation.__context__ = context
-    error.__context__ = cancellation
-    _raise_chained_errors(error)
-
-
-async def _capture_awaitable(awaitable: Awaitable[_T]) -> _BackendOutcome[_T]:
-    try:
-        return _BackendOutcome(value=await awaitable)
-    except BaseException as error:  # ruff:ignore[blind-except]  # backend cancellation must remain distinct from caller cancellation
-        return _BackendOutcome(error=error)
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        await self.lock.release()
 
 
 __all__ = [
-    "_AsyncTransitionGate",
-    "_AsyncTransitionUnavailableError",
-    "_BackendOutcome",
-    "_capture_awaitable",
-    "_capture_call",
-    "_drain_future",
-    "_future_result",
-    "_raise_cancelled_error",
-    "_wait_until_done",
+    "AsyncAcquireSoftReadWriteReturnProxy",
+    "AsyncSoftReadWriteLock",
 ]
