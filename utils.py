@@ -1,71 +1,136 @@
-# -*- coding: utf-8 -*-
-"""
-This module offers general convenience and utility functions for dealing with
-datetimes.
+import re
+import warnings
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+)
 
-.. versionadded:: 2.7.0
-"""
-from __future__ import unicode_literals
+import fastapi
+from fastapi._compat import (
+    ModelField,
+    PydanticSchemaGenerationError,
+    Undefined,
+    annotation_is_pydantic_v1,
+)
+from fastapi.datastructures import DefaultPlaceholder, DefaultType
+from fastapi.exceptions import FastAPIDeprecationWarning, PydanticV1NotSupportedError
+from pydantic.fields import FieldInfo
 
-from datetime import datetime, time
+from ._compat import v2
+
+if TYPE_CHECKING:  # pragma: nocover
+    from .routing import APIRoute
 
 
-def today(tzinfo=None):
+def is_body_allowed_for_status_code(status_code: int | str | None) -> bool:
+    if status_code is None:
+        return True
+    # Ref: https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#patterned-fields-1
+    if status_code in {
+        "default",
+        "1XX",
+        "2XX",
+        "3XX",
+        "4XX",
+        "5XX",
+    }:
+        return True
+    current_status_code = int(status_code)
+    return not (current_status_code < 200 or current_status_code in {204, 205, 304})
+
+
+def get_path_param_names(path: str) -> set[str]:
+    return set(re.findall("{(.*?)}", path))
+
+
+_invalid_args_message = (
+    "Invalid args for response field! Hint: "
+    "check that {type_} is a valid Pydantic field type. "
+    "If you are using a return type annotation that is not a valid Pydantic "
+    "field (e.g. Union[Response, dict, None]) you can disable generating the "
+    "response model from the type annotation with the path operation decorator "
+    "parameter response_model=None. Read more: "
+    "https://fastapi.tiangolo.com/tutorial/response-model/"
+)
+
+
+def create_model_field(
+    name: str,
+    type_: Any,
+    default: Any | None = Undefined,
+    field_info: FieldInfo | None = None,
+    alias: str | None = None,
+    mode: Literal["validation", "serialization"] = "validation",
+) -> ModelField:
+    if annotation_is_pydantic_v1(type_):
+        raise PydanticV1NotSupportedError(
+            "pydantic.v1 models are no longer supported by FastAPI."
+            f" Please update the response model {type_!r}."
+        )
+    field_info = field_info or FieldInfo(annotation=type_, default=default, alias=alias)
+    try:
+        return v2.ModelField(mode=mode, name=name, field_info=field_info)
+    except PydanticSchemaGenerationError:
+        raise fastapi.exceptions.FastAPIError(
+            _invalid_args_message.format(type_=type_)
+        ) from None
+
+
+def generate_operation_id_for_path(
+    *, name: str, path: str, method: str
+) -> str:  # pragma: nocover
+    warnings.warn(
+        message="fastapi.utils.generate_operation_id_for_path() was deprecated, "
+        "it is not used internally, and will be removed soon",
+        category=FastAPIDeprecationWarning,
+        stacklevel=2,
+    )
+    operation_id = f"{name}{path}"
+    operation_id = re.sub(r"\W", "_", operation_id)
+    operation_id = f"{operation_id}_{method.lower()}"
+    return operation_id
+
+
+def generate_unique_id(route: "APIRoute") -> str:
+    operation_id = f"{route.name}{route.path_format}"
+    operation_id = re.sub(r"\W", "_", operation_id)
+    assert route.methods
+    operation_id = f"{operation_id}_{list(route.methods)[0].lower()}"
+    return operation_id
+
+
+def deep_dict_update(main_dict: dict[Any, Any], update_dict: dict[Any, Any]) -> None:
+    for key, value in update_dict.items():
+        if (
+            key in main_dict
+            and isinstance(main_dict[key], dict)
+            and isinstance(value, dict)
+        ):
+            deep_dict_update(main_dict[key], value)
+        elif (
+            key in main_dict
+            and isinstance(main_dict[key], list)
+            and isinstance(update_dict[key], list)
+        ):
+            main_dict[key] = main_dict[key] + update_dict[key]
+        else:
+            main_dict[key] = value
+
+
+def get_value_or_default(
+    first_item: DefaultPlaceholder | DefaultType,
+    *extra_items: DefaultPlaceholder | DefaultType,
+) -> DefaultPlaceholder | DefaultType:
     """
-    Returns a :py:class:`datetime` representing the current day at midnight
+    Pass items or `DefaultPlaceholder`s by descending priority.
 
-    :param tzinfo:
-        The time zone to attach (also used to determine the current day).
+    The first one to _not_ be a `DefaultPlaceholder` will be returned.
 
-    :return:
-        A :py:class:`datetime.datetime` object representing the current day
-        at midnight.
+    Otherwise, the first item (a `DefaultPlaceholder`) will be returned.
     """
-
-    dt = datetime.now(tzinfo)
-    return datetime.combine(dt.date(), time(0, tzinfo=tzinfo))
-
-
-def default_tzinfo(dt, tzinfo):
-    """
-    Sets the ``tzinfo`` parameter on naive datetimes only
-
-    This is useful for example when you are provided a datetime that may have
-    either an implicit or explicit time zone, such as when parsing a time zone
-    string.
-
-    .. doctest::
-
-        >>> from dateutil.tz import tzoffset
-        >>> from dateutil.parser import parse
-        >>> from dateutil.utils import default_tzinfo
-        >>> dflt_tz = tzoffset("EST", -18000)
-        >>> print(default_tzinfo(parse('2014-01-01 12:30 UTC'), dflt_tz))
-        2014-01-01 12:30:00+00:00
-        >>> print(default_tzinfo(parse('2014-01-01 12:30'), dflt_tz))
-        2014-01-01 12:30:00-05:00
-
-    :param dt:
-        The datetime on which to replace the time zone
-
-    :param tzinfo:
-        The :py:class:`datetime.tzinfo` subclass instance to assign to
-        ``dt`` if (and only if) it is naive.
-
-    :return:
-        Returns an aware :py:class:`datetime.datetime`.
-    """
-    if dt.tzinfo is not None:
-        return dt
-    else:
-        return dt.replace(tzinfo=tzinfo)
-
-
-def within_delta(dt1, dt2, delta):
-    """
-    Useful for comparing two datetimes that may have a negligible difference
-    to be considered equal.
-    """
-    delta = abs(delta)
-    difference = dt1 - dt2
-    return -delta <= difference <= delta
+    items = (first_item,) + extra_items
+    for item in items:
+        if not isinstance(item, DefaultPlaceholder):
+            return item
+    return first_item
