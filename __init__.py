@@ -1,61 +1,51 @@
-# -*- coding: utf-8 -*-
-from ._parser import parse, parser, parserinfo, ParserError
-from ._parser import DEFAULTPARSER, DEFAULTTZPARSER
-from ._parser import UnknownTimezoneWarning
+from typing import Any, Optional
 
-from ._parser import __doc__
-
-from .isoparser import isoparser, isoparse
-
-__all__ = ['parse', 'parser', 'parserinfo',
-           'isoparse', 'isoparser',
-           'ParserError',
-           'UnknownTimezoneWarning']
+from .main import dotenv_values, find_dotenv, get_key, load_dotenv, set_key, unset_key
 
 
-###
-# Deprecate portions of the private interface so that downstream code that
-# is improperly relying on it is given *some* notice.
+def load_ipython_extension(ipython: Any) -> None:
+    from .ipython import load_ipython_extension
+
+    load_ipython_extension(ipython)
 
 
-def __deprecated_private_func(f):
-    from functools import wraps
-    import warnings
+def get_cli_string(
+    path: Optional[str] = None,
+    action: Optional[str] = None,
+    key: Optional[str] = None,
+    value: Optional[str] = None,
+    quote: Optional[str] = None,
+):
+    """Returns a string suitable for running as a shell script.
 
-    msg = ('{name} is a private function and may break without warning, '
-           'it will be moved and or renamed in future versions.')
-    msg = msg.format(name=f.__name__)
+    Useful for converting a arguments passed to a fabric task
+    to be passed to a `local` or `run` command.
+    """
+    command = ["dotenv"]
+    if quote:
+        command.append(f"-q {quote}")
+    if path:
+        command.append(f"-f {path}")
+    if action:
+        command.append(action)
+        if key:
+            command.append(key)
+            if value:
+                if " " in value:
+                    command.append(f'"{value}"')
+                else:
+                    command.append(value)
 
-    @wraps(f)
-    def deprecated_func(*args, **kwargs):
-        warnings.warn(msg, DeprecationWarning)
-        return f(*args, **kwargs)
-
-    return deprecated_func
-
-def __deprecate_private_class(c):
-    import warnings
-
-    msg = ('{name} is a private class and may break without warning, '
-           'it will be moved and or renamed in future versions.')
-    msg = msg.format(name=c.__name__)
-
-    class private_class(c):
-        __doc__ = c.__doc__
-
-        def __init__(self, *args, **kwargs):
-            warnings.warn(msg, DeprecationWarning)
-            super(private_class, self).__init__(*args, **kwargs)
-
-    private_class.__name__ = c.__name__
-
-    return private_class
+    return " ".join(command).strip()
 
 
-from ._parser import _timelex, _resultbase
-from ._parser import _tzparser, _parsetz
-
-_timelex = __deprecate_private_class(_timelex)
-_tzparser = __deprecate_private_class(_tzparser)
-_resultbase = __deprecate_private_class(_resultbase)
-_parsetz = __deprecated_private_func(_parsetz)
+__all__ = [
+    "get_cli_string",
+    "load_dotenv",
+    "dotenv_values",
+    "get_key",
+    "set_key",
+    "unset_key",
+    "find_dotenv",
+    "load_ipython_extension",
+]
