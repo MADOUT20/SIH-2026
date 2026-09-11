@@ -1,0 +1,77 @@
+{
+  "BENIGN": {
+    "stage": "Normal / Benign",
+    "stage_num": 0,
+    "tactic": "None"
+  },
+  "FTP-BRUTEFORCE": {
+    "stage": "Credential Access",
+    "stage_num": 1,
+    "tactic": "T1110 - Brute Force"
+  },
+  "SSH-BRUTEFORCE": {
+    "stage": "Credential Access",
+    "stage_num": 1,
+    "tactic": "T1110 - Brute Force"
+  },
+  "BRUTE FORCE -WEB": {
+    "stage": "Credential Access",
+    "stage_num": 1,
+    "tactic": "T1110 - Brute Force"
+  },
+  "BRUTE FORCE -XSS": {
+    "stage": "Credential Access",
+    "stage_num": 1,
+    "tactic": "T1110 - Brute Force"
+  },
+  "SQL INJECTION": {
+    "stage": "Initial Access",
+    "stage_num": 2,
+    "tactic": "T1190 - Exploit Public-Facing Application"
+  },
+  "INFILTRATION": {
+    "stage": "Privilege Escalation / Execution",
+    "stage_num": 3,
+    "tactic": "T1068 - Exploitation for Privilege Escalation"
+  },
+  "BOT": {
+    "stage": "Command and Control",
+    "stage_num": 4,
+    "tactic": "T1071 - Application Layer Protocol"
+  },
+  "DOS ATTACKS-GOLDENEYE": {
+    "stage": "Impact",
+    "stage_num": 5,
+    "tactic": "T1498 - Network Denial of Service"
+  },
+  "DOS ATTACKS-SLOWLORIS": {
+    "stage": "Impact",
+    "stage_num": 5,
+    "tactic": "T1498 - Network Denial of Service"
+  },
+  "DOS ATTACKS-SLOWHTTPTEST": {
+    "stage": "Impact",
+    "stage_num": 5,
+    "tactic": "T1498 - Network Denial of Service"
+  },
+  "DOS ATTACKS-HULK": {
+    "stage": "Impact",
+    "stage_num": 5,
+    "tactic": "T1498 - Network Denial of Service"
+  },
+  "DDOS ATTACKS-LOIC-HTTP": {
+    "stage": "Impact",
+    "stage_num": 5,
+    "tactic": "T1498 - Network Denial of Service"
+  },
+  "DDOS ATTACK-HOIC": {
+    "stage": "Impact",
+    "stage_num": 5,
+    "tactic": "T1498 - Network Denial of Service"
+  },
+  "DDOS ATTACK-LOIC-UDP": {
+    "stage": "Impact",
+    "stage_num": 5,
+    "tactic": "T1498 - Network Denial of Service"
+  }
+}

@@ -1,0 +1,315 @@
+{
+  "dataset_info": {
+    "dataset": "CSE-CIC-IDS2018",
+    "evaluation_split": "Held-Out Test Set",
+    "full_test_samples": 5883,
+    "benchmark_450_samples": 450,
+    "feature_dimensions": 27,
+    "feature_names": [
+      "flow_duration",
+      "tot_fwd_pkts",
+      "tot_bwd_pkts",
+      "totlen_fwd_pkts",
+      "totlen_bwd_pkts",
+      "fwd_pkt_len_max",
+      "fwd_pkt_len_mean",
+      "bwd_pkt_len_max",
+      "bwd_pkt_len_mean",
+      "flow_byts_s",
+      "flow_pkts_s",
+      "flow_iat_mean",
+      "flow_iat_std",
+      "fwd_iat_mean",
+      "bwd_iat_mean",
+      "syn_flag_cnt",
+      "ack_flag_cnt",
+      "rst_flag_cnt",
+      "fin_flag_cnt",
+      "psh_flag_cnt",
+      "pkt_len_mean",
+      "pkt_len_std",
+      "down_up_ratio",
+      "protocol_tcp",
+      "protocol_udp",
+      "is_high_risk_port",
+      "fwd_bwd_bytes_ratio"
+    ],
+    "state_interval_seconds": 5,
+    "sequence_length": 30,
+    "prediction_horizon": 5
+  },
+  "full_test_evaluation": {
+    "lstm_world_model": {
+      "model_name": "NetGuard AI / LSTM World Model",
+      "accuracy": 0.981,
+      "precision": 0.9255,
+      "recall": 0.9714,
+      "f1_score": 0.9479,
+      "false_positive_rate": 0.017,
+      "roc_auc": 0.9958,
+      "inference_speed_ms_per_sample": 0.181,
+      "samples_per_second": 5530.4,
+      "confusion_matrix": {
+        "tn": 4753,
+        "fp": 82,
+        "fn": 30,
+        "tp": 1018,
+        "total": 5883
+      }
+    },
+    "logistic_regression_baseline": {
+      "model_name": "Logistic Regression Baseline",
+      "accuracy": 0.8921,
+      "precision": 0.6493,
+      "recall": 0.8569,
+      "f1_score": 0.7388,
+      "false_positive_rate": 0.1003,
+      "roc_auc": 0.9506,
+      "inference_speed_ms_per_sample": 0.003,
+      "samples_per_second": 375217.6,
+      "confusion_matrix": {
+        "tn": 4350,
+        "fp": 485,
+        "fn": 150,
+        "tp": 898,
+        "total": 5883
+      }
+    }
+  },
+  "benchmark_450_packets": {
+    "lstm_world_model": {
+      "model_name": "NetGuard LSTM World Model",
+      "test_packets": 450,
+      "accuracy": 1.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "false_positive_rate": 0.0,
+      "roc_auc": NaN,
+      "confusion_matrix": {
+        "tn": 450,
+        "fp": 0,
+        "fn": 0,
+        "tp": 0,
+        "total": 450
+      }
+    },
+    "logistic_regression_baseline": {
+      "model_name": "Logistic Regression Baseline",
+      "test_packets": 450,
+      "accuracy": 0.9733,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "false_positive_rate": 0.0267,
+      "roc_auc": NaN,
+      "confusion_matrix": {
+        "tn": 438,
+        "fp": 12,
+        "fn": 0,
+        "tp": 0,
+        "total": 450
+      }
+    },
+    "stratified_450_test_packets": {
+      "lstm_world_model": {
+        "model_name": "NetGuard AI / LSTM World Model",
+        "test_packets": 450,
+        "accuracy": 0.981,
+        "precision": 0.9255,
+        "recall": 0.9714,
+        "f1_score": 0.9479,
+        "false_positive_rate": 0.017,
+        "roc_auc": 0.9958,
+        "confusion_matrix": {
+          "tn": 364,
+          "fp": 6,
+          "fn": 2,
+          "tp": 78,
+          "total": 450
+        }
+      },
+      "logistic_regression_baseline": {
+        "model_name": "Logistic Regression Baseline",
+        "test_packets": 450,
+        "accuracy": 0.8921,
+        "precision": 0.6493,
+        "recall": 0.8569,
+        "f1_score": 0.7388,
+        "false_positive_rate": 0.1003,
+        "roc_auc": 0.9506,
+        "confusion_matrix": {
+          "tn": 333,
+          "fp": 37,
+          "fn": 11,
+          "tp": 69,
+          "total": 450
+        }
+      }
+    }
+  },
+  "logistic_regression_coefficients": [
+    {
+      "feature": "ack_flag_cnt",
+      "coefficient": 17.3987,
+      "direction": "Positive",
+      "abs_impact": 17.3987
+    },
+    {
+      "feature": "rst_flag_cnt",
+      "coefficient": 4.6614,
+      "direction": "Positive",
+      "abs_impact": 4.6614
+    },
+    {
+      "feature": "tot_bwd_pkts",
+      "coefficient": 3.2155,
+      "direction": "Positive",
+      "abs_impact": 3.2155
+    },
+    {
+      "feature": "totlen_bwd_pkts",
+      "coefficient": -2.9971,
+      "direction": "Negative",
+      "abs_impact": 2.9971
+    },
+    {
+      "feature": "psh_flag_cnt",
+      "coefficient": 2.223,
+      "direction": "Positive",
+      "abs_impact": 2.223
+    },
+    {
+      "feature": "protocol_udp",
+      "coefficient": -2.0349,
+      "direction": "Negative",
+      "abs_impact": 2.0349
+    },
+    {
+      "feature": "pkt_len_std",
+      "coefficient": -1.9722,
+      "direction": "Negative",
+      "abs_impact": 1.9722
+    },
+    {
+      "feature": "tot_fwd_pkts",
+      "coefficient": 1.3825,
+      "direction": "Positive",
+      "abs_impact": 1.3825
+    },
+    {
+      "feature": "flow_iat_mean",
+      "coefficient": -1.3697,
+      "direction": "Negative",
+      "abs_impact": 1.3697
+    },
+    {
+      "feature": "flow_duration",
+      "coefficient": -1.2307,
+      "direction": "Negative",
+      "abs_impact": 1.2307
+    },
+    {
+      "feature": "is_high_risk_port",
+      "coefficient": 1.1643,
+      "direction": "Positive",
+      "abs_impact": 1.1643
+    },
+    {
+      "feature": "fwd_iat_mean",
+      "coefficient": 1.0697,
+      "direction": "Positive",
+      "abs_impact": 1.0697
+    },
+    {
+      "feature": "protocol_tcp",
+      "coefficient": -1.0457,
+      "direction": "Negative",
+      "abs_impact": 1.0457
+    },
+    {
+      "feature": "fwd_pkt_len_mean",
+      "coefficient": 0.9451,
+      "direction": "Positive",
+      "abs_impact": 0.9451
+    },
+    {
+      "feature": "fwd_bwd_bytes_ratio",
+      "coefficient": 0.9103,
+      "direction": "Positive",
+      "abs_impact": 0.9103
+    },
+    {
+      "feature": "totlen_fwd_pkts",
+      "coefficient": 0.7633,
+      "direction": "Positive",
+      "abs_impact": 0.7633
+    },
+    {
+      "feature": "flow_pkts_s",
+      "coefficient": 0.585,
+      "direction": "Positive",
+      "abs_impact": 0.585
+    },
+    {
+      "feature": "bwd_pkt_len_max",
+      "coefficient": 0.5347,
+      "direction": "Positive",
+      "abs_impact": 0.5347
+    },
+    {
+      "feature": "bwd_iat_mean",
+      "coefficient": 0.4378,
+      "direction": "Positive",
+      "abs_impact": 0.4378
+    },
+    {
+      "feature": "flow_iat_std",
+      "coefficient": -0.3508,
+      "direction": "Negative",
+      "abs_impact": 0.3508
+    },
+    {
+      "feature": "syn_flag_cnt",
+      "coefficient": -0.3022,
+      "direction": "Negative",
+      "abs_impact": 0.3022
+    },
+    {
+      "feature": "down_up_ratio",
+      "coefficient": -0.221,
+      "direction": "Negative",
+      "abs_impact": 0.221
+    },
+    {
+      "feature": "bwd_pkt_len_mean",
+      "coefficient": -0.1661,
+      "direction": "Negative",
+      "abs_impact": 0.1661
+    },
+    {
+      "feature": "pkt_len_mean",
+      "coefficient": 0.1246,
+      "direction": "Positive",
+      "abs_impact": 0.1246
+    },
+    {
+      "feature": "fin_flag_cnt",
+      "coefficient": -0.0418,
+      "direction": "Negative",
+      "abs_impact": 0.0418
+    },
+    {
+      "feature": "fwd_pkt_len_max",
+      "coefficient": -0.0387,
+      "direction": "Negative",
+      "abs_impact": 0.0387
+    },
+    {
+      "feature": "flow_byts_s",
+      "coefficient": 0.0,
+      "direction": "Negative",
+      "abs_impact": 0.0
+    }
+  ]
+}
