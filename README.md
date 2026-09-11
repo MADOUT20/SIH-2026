@@ -133,6 +133,12 @@ To capture live traffic from your Wi-Fi/Ethernet network card:
    ```
 *Tip: If you see a `python-multipart` error, run: `./backend/.venv/bin/python -m pip install python-multipart`*
 
+#### 🛠️ Common macOS Issues & Fixes
+- **Frontend Installation Error (`ERESOLVE`)**: If `npm install` fails due to React version conflicts, use:
+  `cd frontend && npm install --legacy-peer-deps`
+- **Setup Script Error (`ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`)**: If you have `pnpm` installed and the setup script fails, manually install frontend dependencies using the `npm` command above.
+
+
 ---
 
 ## 📖 Documentation Index
