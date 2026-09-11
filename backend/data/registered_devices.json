@@ -1,0 +1,22 @@
+{
+  "dev_192_168_1_105": {
+    "id": "dev_192_168_1_105",
+    "name": "Engineering Laptop",
+    "ip": "192.168.1.105",
+    "mac": "00:1A:2B:3C:4D:5E",
+    "device_type": "Laptop",
+    "description": "Development workstation",
+    "created_at": "2026-09-06T18:49:46.791800",
+    "is_registered": true
+  },
+  "dev_10_0_0_99": {
+    "id": "dev_10_0_0_99",
+    "name": "Isolated Sensor",
+    "ip": "10.0.0.99",
+    "mac": null,
+    "device_type": "IoT",
+    "description": "Unconnected hardware",
+    "created_at": "2026-09-06T18:49:59.863678",
+    "is_registered": true
+  }
+}

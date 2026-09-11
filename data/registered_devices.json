@@ -1,0 +1,57 @@
+{
+  "dev_192_168_254_254": {
+    "id": "dev_192_168_254_254",
+    "name": "Device (192.168.254.254)",
+    "ip": "192.168.254.254",
+    "mac": null,
+    "device_type": "Laptop",
+    "description": "Connected network monitoring target",
+    "connected_at": "2026-09-07T18:30:50.934512",
+    "consent_granted": true,
+    "is_registered": true
+  },
+  "dev_172_19_20_76": {
+    "id": "dev_172_19_20_76",
+    "name": "Nearby Device (172.19.20.76)",
+    "ip": "172.19.20.76",
+    "mac": null,
+    "device_type": "Endpoint",
+    "description": "Connected via Network Topology map",
+    "connected_at": "2026-09-07T22:47:38.546820",
+    "consent_granted": true,
+    "is_registered": true
+  },
+  "dev_172_19_20_135": {
+    "id": "dev_172_19_20_135",
+    "name": "Local Workstation (Mudra1127)",
+    "ip": "172.19.20.135",
+    "mac": null,
+    "device_type": "Endpoint",
+    "description": "Connected via Network Topology map",
+    "connected_at": "2026-09-07T22:47:56.934264",
+    "consent_granted": true,
+    "is_registered": true
+  },
+  "dev_192_168_0_1": {
+    "id": "dev_192_168_0_1",
+    "name": "Default Gateway Router",
+    "ip": "192.168.0.1",
+    "mac": "5C:62:8B:30:03:72",
+    "device_type": "Gateway Router",
+    "description": "Discovered via ARP cache (dynamic)",
+    "connected_at": "2026-09-08T10:38:56.508107",
+    "consent_granted": true,
+    "is_registered": true
+  },
+  "dev_192_168_0_173": {
+    "id": "dev_192_168_0_173",
+    "name": "Local Workstation (Mudra1127)",
+    "ip": "192.168.0.173",
+    "mac": "00:41:0E:46:A9:49",
+    "device_type": "Workstation",
+    "description": "This Machine (Realtek 8821CE Wireless LAN 802.11ac PCI-E NIC)",
+    "connected_at": "2026-09-08T11:26:34.983967",
+    "consent_granted": true,
+    "is_registered": true
+  }
+}
